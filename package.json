@@ -8,9 +8,13 @@
     "build:chrome": "TARGET_BROWSER=chrome vite build",
     "build:firefox": "TARGET_BROWSER=firefox vite build",
     "build": "npm run build:chrome && npm run build:firefox",
-    "lint:firefox": "web-ext lint --source-dir dist"
+    "lint:firefox": "web-ext lint --source-dir dist",
+    "decohere": "npx tsx scripts/decohere.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "alkahest-ts": "file:../alkahest-ts",
+    "glob": "^13.0.6",
     "solid-js": "^1.9.10"
   },
   "devDependencies": {
