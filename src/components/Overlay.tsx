@@ -7,6 +7,7 @@
 
 import { createSignal, Show } from "solid-js"
 import { Portal } from "solid-js/web"
+import { CanvasLink } from "./CanvasLink"
 
 export function Overlay() {
   const [open, setOpen] = createSignal(false)
@@ -62,9 +63,11 @@ export function Overlay() {
               }}
               onClick={e => e.stopPropagation()}
             >
-              <h2 style={{ margin: "0 0 1rem" }}>Dean Tools</h2>
-              <p style={{ color: "#555" }}>Features coming soon.</p>
-              <button onClick={() => setOpen(false)}>Close</button>
+              <h2 style={{ margin: "0 0 1.5rem" }}>Dean Tools</h2>
+              <CanvasLink />
+              <div style={{ "margin-top": "1.5rem", "text-align": "right" }}>
+                <button onClick={() => setOpen(false)}>Close</button>
+              </div>
             </div>
           </div>
         </Portal>
