@@ -2,12 +2,15 @@
 /**
  * decohere — alkahest-powered type design assistant.
  *
- * Finds @decohere-annotated types in src/, uses the Otter loop with
- * Claude as combineFn to propose TypeScript definitions, validates each
- * proposal with tsc, and writes passing proposals to src/generated/.
+ * Finds @decohere-annotated types in src/, proposes TypeScript definitions
+ * using a local or remote AI model, validates with tsc, and writes passing
+ * proposals to src/generated/ for human review.
  *
  * Run: npm run decohere
- * Review output in src/generated/ and commit what you want to keep.
+ * Set DECOHERE_MODEL to control the AI backend (default: local)
+ *
+ * Call strategy: one synthesis call per type, then repair-loop with tsc
+ * error feedback. Best case: 1 AI call per type.
  *
  * Never runs on student data. Dev-time only.
  */
@@ -17,16 +20,14 @@ import { execSync } from "child_process"
 import { join, dirname } from "path"
 import { fileURLToPath } from "url"
 import { globSync } from "glob"
-import Anthropic from "@anthropic-ai/sdk"
-import { runOtter, makeItem } from "alkahest-ts"
+import { makeItem } from "alkahest-ts"
 import type { Item, OtterDomain, OtterState } from "alkahest-ts"
+import { resolveCombiner, type Combiner } from "./combiners.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, "..")
 const GENERATED_DIR = join(ROOT, "src", "generated")
 const TEMP_DIR = join(ROOT, ".decohere-tmp")
-
-const client = new Anthropic()
 
 // --- Annotation scanner ---
 
@@ -34,10 +35,9 @@ interface DecohereTarget {
   name: string
   kind: "type" | "interface"
   contexts: string[]
-  raw: string
 }
 
-function scanForTargets(_dir: string): DecohereTarget[] {
+function scanForTargets(): DecohereTarget[] {
   const files = globSync("src/**/*.ts", { cwd: ROOT })
   const targets: DecohereTarget[] = []
 
@@ -50,14 +50,9 @@ function scanForTargets(_dir: string): DecohereTarget[] {
       const comment = match[1]
       if (!comment.includes("@decohere")) continue
       const contexts = [...comment.matchAll(/@context (.+)/g)].map(m => m[1].trim())
-      if (contexts.length === 0) continue  // need at least one constraint to work with
+      if (contexts.length === 0) continue
 
-      targets.push({
-        name: match[4],
-        kind: match[3] as "type" | "interface",
-        contexts,
-        raw: comment,
-      })
+      targets.push({ name: match[4], kind: match[3] as "type" | "interface", contexts })
     }
   }
 
@@ -66,11 +61,10 @@ function scanForTargets(_dir: string): DecohereTarget[] {
 
 // --- TSC validator ---
 
-function validate(typeName: string, proposed: string, allProposed: string[]): boolean {
+function validate(typeName: string, proposed: string, prior: string[]): { ok: boolean; error: string } {
   if (!existsSync(TEMP_DIR)) mkdirSync(TEMP_DIR, { recursive: true })
 
-  // Write all proposed types together so they can reference each other
-  const combined = allProposed.join("\n\n") + "\n\n" + proposed
+  const combined = [...prior, proposed].join("\n\n")
   const tempFile = join(TEMP_DIR, `${typeName}.ts`)
   writeFileSync(tempFile, combined)
 
@@ -79,145 +73,161 @@ function validate(typeName: string, proposed: string, allProposed: string[]): bo
       cwd: ROOT,
       stdio: "pipe",
     })
-    return true
-  } catch {
-    return false
+    return { ok: true, error: "" }
+  } catch (e: unknown) {
+    const err = e as { stderr?: Buffer; stdout?: Buffer }
+    return {
+      ok: false,
+      error: (err.stderr?.toString() ?? err.stdout?.toString() ?? "unknown tsc error").slice(0, 800),
+    }
   }
 }
 
-// --- Alkahest domain for type design ---
+// --- Prompts ---
 
-function makeDecohereDoamin(
+function synthesizePrompt(target: DecohereTarget, prior: string[]): string {
+  return `You are designing a TypeScript ${target.kind} called "${target.name}".
+
+Constraints:
+${target.contexts.map(c => `- ${c}`).join("\n")}
+${prior.length ? `\nAlready defined types you may reference:\n${prior.join("\n\n")}` : ""}
+
+Respond with ONLY a valid TypeScript ${target.kind} definition. No explanation, no markdown fences.`
+}
+
+function repairPrompt(target: DecohereTarget, failed: string, error: string, prior: string[]): string {
+  return `This TypeScript ${target.kind} definition failed to compile:
+
+${failed}
+
+TypeScript error:
+${error}
+
+${prior.length ? `Other types already defined:\n${prior.join("\n\n")}\n\n` : ""}Fix it. Respond with ONLY the corrected definition. No explanation, no markdown fences.`
+}
+
+// --- Alkahest domain ---
+//
+// Items are proposals. The loop:
+//   Step 0: "synthesize" item moves to usable, seeds the first real proposal
+//   Step 1+: focus = latest proposal, usable includes prior attempts + errors
+//            combineFn generates a repair
+//   stopFn: tsc passes
+//
+// This gives us 1 AI call for synthesis + N repair calls only if needed.
+
+function makeDecohereDomain(
   target: DecohereTarget,
-  allProposed: string[],
+  prior: string[],
+  combiner: Combiner,
 ): OtterDomain<Item> {
-  const initialItems = target.contexts.map((ctx, i) =>
-    makeItem(`context-${i}`, ctx)
-  )
-
-  const combineFn = async (a: Item, b: Item): Promise<Item[]> => {
-    const prompt = `You are helping design a TypeScript type called "${target.name}".
-
-Known facts about this type:
-- ${a.content}
-- ${b.content}
-
-Propose a complete TypeScript ${target.kind} definition for "${target.name}".
-Return ONLY the TypeScript code, no explanation, no markdown fences.
-Use only primitive types, string, number, boolean, arrays, and references to these other types if needed: ${allProposed.map(p => p.split(" ")[2]).join(", ") || "none yet"}.`
-
-    const response = await client.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 512,
-      messages: [{ role: "user", content: prompt }],
-    })
-
-    const proposed = (response.content[0] as { text: string }).text.trim()
-    return [makeItem(`proposal-${Date.now()}`, proposed)]
-  }
-
-  const stopFn = (state: OtterState<Item>): boolean => {
-    const proposals = [...state.setOfSupport, ...state.usable]
-      .filter(x => x.name.startsWith("proposal-"))
-
-    return proposals.some(p => validate(target.name, p.content, allProposed))
-  }
-
   return {
     initialState: (): OtterState<Item> => ({
-      setOfSupport: initialItems,
+      setOfSupport: [makeItem("synthesize", synthesizePrompt(target, prior))],
       usable: [],
       history: [],
       step: 0,
       halted: false,
       haltReason: "",
     }),
-    combineFn,
-    stopFn,
+
+    combineFn: async (focus: Item, _other: Item): Promise<Item[]> => {
+      // focus.content is either a prompt (synthesize) or a failed proposal + error
+      const result = await combiner(focus.content)
+      return [makeItem(`proposal-${Date.now()}`, result)]
+    },
+
+    stopFn: (state: OtterState<Item>): boolean => {
+      const proposals = [...state.setOfSupport, ...state.usable]
+        .filter(x => x.name.startsWith("proposal-"))
+      return proposals.some(p => validate(target.name, p.content, prior).ok)
+    },
   }
+}
+
+// --- Async otter loop ---
+
+async function runOtterAsync(
+  domain: OtterDomain<Item>,
+  target: DecohereTarget,
+  prior: string[],
+  combiner: Combiner,
+  maxSteps: number,
+): Promise<Item | null> {
+  let state = domain.initialState()
+
+  for (let i = 0; i < maxSteps; i++) {
+    if (state.setOfSupport.length === 0) break
+
+    const [focus, ...rest] = state.setOfSupport
+    state = { ...state, setOfSupport: rest, step: state.step + 1 }
+
+    // Generate a proposal from the focus prompt
+    console.log(`  call ${state.step}: generating proposal...`)
+    const proposed = await combiner(focus.content)
+    const item = makeItem(`proposal-${Date.now()}`, proposed)
+
+    const { ok, error } = validate(target.name, proposed, prior)
+
+    if (ok) {
+      console.log(`  ✓ valid on call ${state.step}`)
+      return item
+    }
+
+    console.log(`  ✗ tsc rejected — queuing repair`)
+
+    // Seed next iteration with a repair prompt
+    const repairItem = makeItem(
+      `repair-${Date.now()}`,
+      repairPrompt(target, proposed, error, prior),
+    )
+
+    state = {
+      ...state,
+      usable: [...state.usable, focus],
+      setOfSupport: [...state.setOfSupport, repairItem],
+    }
+  }
+
+  return null
 }
 
 // --- Main ---
 
 async function main() {
-  const targets = scanForTargets(ROOT)
+  const targets = scanForTargets()
 
   if (targets.length === 0) {
     console.log("No @decohere targets found.")
     return
   }
 
-  console.log(`Found ${targets.length} @decohere target(s): ${targets.map(t => t.name).join(", ")}\n`)
+  console.log(`Found ${targets.length} target(s): ${targets.map(t => t.name).join(", ")}`)
+  const combiner = await resolveCombiner()
   mkdirSync(GENERATED_DIR, { recursive: true })
 
-  const allProposed: string[] = []
+  const prior: string[] = []
 
   for (const target of targets) {
     console.log(`\nDecohering ${target.name}...`)
 
-    const domain = makeDecohereDoamin(target, allProposed)
-    const state = await runOtterAsync(domain, { maxSteps: 10, verbose: true })
-
-    // Find the winning proposal
-    const winner = [...state.setOfSupport, ...state.usable]
-      .filter(x => x.name.startsWith("proposal-"))
-      .find(p => validate(target.name, p.content, allProposed))
+    const domain = makeDecohereDomain(target, prior, combiner)
+    const winner = await runOtterAsync(domain, target, prior, combiner, 5)
 
     if (winner) {
-      allProposed.push(winner.content)
+      prior.push(winner.content)
       const outFile = join(GENERATED_DIR, `${target.name}.ts`)
-      writeFileSync(outFile, `// Generated by decohere — review before committing\n// ${new Date().toISOString()}\n\n${winner.content}\n`)
-      console.log(`  ✓ ${target.name} → src/generated/${target.name}.ts`)
+      writeFileSync(
+        outFile,
+        `// Generated by decohere — review before committing\n// ${new Date().toISOString()}\n\n${winner.content}\n`,
+      )
+      console.log(`  → src/generated/${target.name}.ts`)
     } else {
-      console.log(`  ✗ ${target.name}: no valid proposal found in ${10} steps`)
+      console.log(`  ✗ no valid proposal after 5 attempts`)
     }
   }
 
   console.log("\nDone. Review src/generated/ and commit what you want to keep.")
-}
-
-// runOtter is sync in alkahest-ts — we need an async wrapper for the LLM combineFn
-async function runOtterAsync(
-  domain: OtterDomain<Item>,
-  options: { maxSteps: number; verbose: boolean },
-): Promise<OtterState<Item>> {
-  let state = domain.initialState()
-
-  for (let i = 0; i < options.maxSteps; i++) {
-    if (state.halted) break
-    if (domain.stopFn?.(state)) {
-      state = { ...state, halted: true, haltReason: "stop condition met" }
-      break
-    }
-
-    if (state.setOfSupport.length === 0) {
-      state = { ...state, halted: true, haltReason: "set_of_support empty" }
-      break
-    }
-
-    const [focus, ...rest] = state.setOfSupport
-    state = { ...state, setOfSupport: rest, step: state.step + 1 }
-
-    if (options.verbose) console.log(`  step ${state.step}: focus = "${focus.content.slice(0, 60)}..."`)
-
-    const newItems: Item[] = []
-    for (const y of state.usable) {
-      const results = await domain.combineFn(focus, y)
-      for (const r of results) {
-        if (![...state.setOfSupport, ...state.usable, ...newItems].some(x => x.name === r.name)) {
-          newItems.push({ ...r, step: state.step })
-        }
-      }
-    }
-
-    state = {
-      ...state,
-      usable: [...state.usable, focus],
-      setOfSupport: [...state.setOfSupport, ...newItems],
-    }
-  }
-
-  return state
 }
 
 main().catch(console.error)
