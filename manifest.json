@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "UEU Dean Tools",
+  "version": "0.1.0",
+  "description": "Convenience tools for Unity Environmental University deans — Salesforce and Canvas overlay.",
+
+  "permissions": ["storage", "activeTab"],
+
+  "host_permissions": [
+    "https://*.salesforce.com/*",
+    "https://*.force.com/*",
+    "https://unity.instructure.edu/*"
+  ],
+
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_title": "UEU Dean Tools"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.salesforce.com/*",
+        "https://*.force.com/*",
+        "https://unity.instructure.edu/*"
+      ],
+      "js": ["src/content/index.ts"],
+      "run_at": "document_idle"
+    }
+  ]
+}
