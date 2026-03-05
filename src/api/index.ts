@@ -4,8 +4,7 @@
  * All functions here return mock data. When the real API server exists,
  * swap the internals; the types and signatures stay the same.
  *
- * @decohere — future: mark types here and let alkahest-ts generate stubs
- * from type constraints alone.
+ * Future: run decohere to generate stubs from type constraints alone.
  */
 
 export interface DeanProfile {
