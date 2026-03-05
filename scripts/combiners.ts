@@ -79,13 +79,19 @@ export function makeOpenAICombiner(baseUrl: string, model: string): Combiner {
  * Resolve the combiner from environment / arguments.
  *
  * Priority:
- *   1. DECOHERE_MODEL=local       → local Flask server on :5051
- *   2. DECOHERE_MODEL=ollama:X    → Ollama with model X
- *   3. DECOHERE_MODEL=anthropic   → Anthropic API (default model)
- *   4. (default, no env var)      → local Flask server on :5051
+ *   1. DECOHERE_MODEL=local       → local Flask server on :5051 (0.5B)
+ *   2. DECOHERE_MODEL=qwen7b      → local Flask server on :5052 (7B-Instruct)
+ *   3. DECOHERE_MODEL=ollama:X    → Ollama with model X
+ *   4. DECOHERE_MODEL=anthropic   → Anthropic API (default model)
+ *   5. (default, no env var)      → qwen7b on :5052
  */
 export async function resolveCombiner(): Promise<Combiner> {
-  const setting = process.env.DECOHERE_MODEL ?? "local"
+  const setting = process.env.DECOHERE_MODEL ?? "qwen7b"
+
+  if (setting === "qwen7b") {
+    console.log("  combiner: Qwen2.5-7B-Instruct on :5052")
+    return makeLocalCombiner("http://localhost:5052")
+  }
 
   if (setting === "local") {
     console.log("  combiner: local Flask server on :5051")
