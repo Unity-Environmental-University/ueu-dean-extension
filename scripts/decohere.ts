@@ -29,21 +29,22 @@ const ROOT = join(__dirname, "..")
 const GENERATED_DIR = join(ROOT, "src", "generated")
 const TEMP_DIR = join(ROOT, ".decohere-tmp")
 
-// --- Annotation scanner ---
+// --- Annotation scanner + dependency graph ---
 
 interface DecohereTarget {
   name: string
   kind: "type" | "interface"
   contexts: string[]
+  downstreamContexts: string[]  // contexts from types that reference this one
 }
 
 function scanForTargets(): DecohereTarget[] {
   const files = globSync("src/**/*.ts", { cwd: ROOT })
-  const targets: DecohereTarget[] = []
+  const raw: Omit<DecohereTarget, "downstreamContexts">[] = []
 
   for (const file of files) {
     const src = readFileSync(join(ROOT, file), "utf-8")
-    const pattern = /\/\*\*([\s\S]*?)\*\/([\s\S]*?)export\s+(type|interface)\s+(\w+)/g
+    const pattern = /\/\*\*([\s\S]*?)\*\/\s*export\s+(type|interface)\s+(\w+)/g
     let match
 
     while ((match = pattern.exec(src)) !== null) {
@@ -51,12 +52,72 @@ function scanForTargets(): DecohereTarget[] {
       if (!comment.includes("@decohere")) continue
       const contexts = [...comment.matchAll(/@context (.+)/g)].map(m => m[1].trim())
       if (contexts.length === 0) continue
-
-      targets.push({ name: match[4], kind: match[3] as "type" | "interface", contexts })
+      raw.push({ name: match[3], kind: match[2] as "type" | "interface", contexts })
     }
   }
 
-  return targets
+  const names = new Set(raw.map(t => t.name))
+
+  // Infer dependency edges: if type B's contexts mention type A's name, B depends on A.
+  // Build a map: typeName -> contexts from all types that reference it ("downstream")
+  const downstream = new Map<string, string[]>()
+  for (const t of raw) {
+    for (const ctx of t.contexts) {
+      for (const name of names) {
+        if (name !== t.name && ctx.includes(name)) {
+          if (!downstream.has(name)) downstream.set(name, [])
+          downstream.get(name)!.push(`[downstream: ${t.name}] ${ctx}`)
+        }
+      }
+    }
+  }
+
+  // Topological sort — parents (referenced types) before children
+  const sorted = topoSort(raw.map(t => t.name), (name) => {
+    const t = raw.find(r => r.name === name)!
+    return raw
+      .filter(other => other.name !== name && other.contexts.some(c => c.includes(name)))
+      .map(other => other.name)
+  })
+
+  return sorted.map(name => {
+    const t = raw.find(r => r.name === name)!
+    return { ...t, downstreamContexts: downstream.get(name) ?? [] }
+  })
+}
+
+function topoSort(names: string[], getDependents: (name: string) => string[]): string[] {
+  // Kahn's algorithm — nodes with no dependents (i.e. leaves) go last,
+  // nodes that others depend on (roots/bases) go first.
+  const dependentCount = new Map(names.map(n => [n, 0]))
+  const dependentsOf = new Map(names.map(n => [n, [] as string[]]))
+
+  for (const name of names) {
+    for (const dep of getDependents(name)) {
+      dependentCount.set(dep, (dependentCount.get(dep) ?? 0) + 1)
+      dependentsOf.get(name)!.push(dep)
+    }
+  }
+
+  const queue = names.filter(n => (dependentCount.get(n) ?? 0) === 0)
+  const result: string[] = []
+
+  while (queue.length > 0) {
+    const node = queue.shift()!
+    result.push(node)
+    for (const dep of dependentsOf.get(node) ?? []) {
+      const count = (dependentCount.get(dep) ?? 1) - 1
+      dependentCount.set(dep, count)
+      if (count === 0) queue.push(dep)
+    }
+  }
+
+  // Append any remaining (cycles — shouldn't happen with types but be safe)
+  for (const name of names) {
+    if (!result.includes(name)) result.push(name)
+  }
+
+  return result
 }
 
 // --- TSC validator ---
@@ -86,10 +147,14 @@ function validate(typeName: string, proposed: string, prior: string[]): { ok: bo
 // --- Prompts ---
 
 function synthesizePrompt(target: DecohereTarget, prior: string[]): string {
+  const downstream = target.downstreamContexts.length > 0
+    ? `\nDownstream requirements (types that will extend or use this one need):\n${target.downstreamContexts.map(c => `- ${c}`).join("\n")}`
+    : ""
+
   return `You are designing a TypeScript ${target.kind} called "${target.name}".
 
-Constraints:
-${target.contexts.map(c => `- ${c}`).join("\n")}
+Own constraints:
+${target.contexts.map(c => `- ${c}`).join("\n")}${downstream}
 ${prior.length ? `\nAlready defined types you may reference:\n${prior.join("\n\n")}` : ""}
 
 Respond with ONLY a valid TypeScript ${target.kind} definition. No explanation, no markdown fences.`

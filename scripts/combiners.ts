@@ -7,6 +7,11 @@
 
 export type Combiner = (prompt: string) => Promise<string>
 
+/** Strip markdown code fences — local models love to add them despite instructions. */
+function stripFences(s: string): string {
+  return s.replace(/^```[\w]*\n?/m, "").replace(/\n?```$/m, "").trim()
+}
+
 /**
  * Anthropic API combiner.
  * Requires ANTHROPIC_API_KEY env var.
@@ -46,7 +51,7 @@ export function makeLocalCombiner(baseUrl = "http://localhost:5051"): Combiner {
     if (data.error) throw new Error(`Local model error: ${data.error}`)
     if (!data.response) throw new Error("Local model returned no response")
 
-    return data.response.trim()
+    return stripFences(data.response)
   }
 }
 
