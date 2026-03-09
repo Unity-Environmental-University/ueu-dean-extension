@@ -4,15 +4,18 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run dev:chrome & npm run dev:firefox & wait",
+    "dev:chrome": "TARGET_BROWSER=chrome vite build --watch",
+    "dev:firefox": "TARGET_BROWSER=firefox vite build --watch",
     "build:chrome": "TARGET_BROWSER=chrome vite build",
     "build:firefox": "TARGET_BROWSER=firefox vite build",
     "build": "npm run build:chrome && npm run build:firefox",
-    "lint:firefox": "web-ext lint --source-dir dist",
+    "lint:firefox": "web-ext lint --source-dir dist/firefox",
     "decohere": "npx tsx scripts/decohere.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@ueu/canvas-alkahest": "file:../ueu-canvas-alkahest",
     "alkahest-ts": "file:../alkahest-ts",
     "glob": "^13.0.6",
     "solid-js": "^1.9.10"
