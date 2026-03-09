@@ -2,12 +2,15 @@
  * Salesforce Lightning page DOM utilities.
  *
  * Reads data from the current SF Lightning record page.
- * Called lazily — only when the dean opens the modal, never continuously.
+ * PII is hashed at the parse boundary — nothing downstream ever sees real names.
  */
+
+import type { DishonestyCaseRecord } from "../types/records"
 
 export interface SalesforcePageContext {
   recordId: string | null
   courseId: string | null
+  caseRecord: DishonestyCaseRecord | null | undefined
 }
 
 /**
@@ -21,15 +24,8 @@ function getRecordIdFromUrl(): string | null {
 
 /**
  * Find a field value on a Lightning record page by its label text.
- *
- * Lightning renders fields as:
- *   <lightning-output-field> or <records-record-layout-item>
- *     containing a label and a value element.
- *
- * We find the label by text content, then grab the nearest value.
  */
 function getFieldByLabel(label: string): string | null {
-  // Try lightning-formatted-text siblings of matching label spans
   const spans = document.querySelectorAll(
     "records-record-layout-item span.test-id__field-label, " +
     "lightning-output-field span, " +
@@ -38,7 +34,6 @@ function getFieldByLabel(label: string): string | null {
 
   for (const span of spans) {
     if (span.textContent?.trim().toLowerCase() === label.toLowerCase()) {
-      // Walk up to the field container then find the value
       const container = span.closest(
         "records-record-layout-item, lightning-output-field, .slds-form-element"
       )
@@ -57,11 +52,92 @@ function getFieldByLabel(label: string): string | null {
 }
 
 /**
+ * One-way hash for PII. Same input always produces the same token,
+ * so we can correlate cases for the same student without storing names.
+ */
+async function anonymize(raw: string): Promise<string> {
+  const data = new TextEncoder().encode(raw.toLowerCase().trim())
+  const hash = await crypto.subtle.digest("SHA-256", data)
+  const bytes = new Uint8Array(hash)
+  return Array.from(bytes.slice(0, 8), b => b.toString(16).padStart(2, "0")).join("")
+}
+
+/**
+ * Classify the incident type from Salesforce field text.
+ */
+function classifyIncident(raw: string | null): DishonestyCaseRecord["incidentType"] {
+  if (!raw) return "other"
+  const lower = raw.toLowerCase()
+  if (lower.includes("plagiari")) return "plagiarism"
+  if (lower.includes("cheat")) return "cheating"
+  if (lower.includes("fabricat")) return "fabrication"
+  return "other"
+}
+
+/**
+ * Normalize status text from Salesforce into our union.
+ */
+function normalizeStatus(raw: string | null): DishonestyCaseRecord["status"] {
+  if (!raw) return "open"
+  const lower = raw.toLowerCase()
+  if (lower.includes("resolved") || lower.includes("closed")) return "resolved"
+  if (lower.includes("pending") || lower.includes("review")) return "pending"
+  return "open"
+}
+
+/**
+ * Parse the current Salesforce page into an anonymized DishonestyCaseRecord.
+ *
+ * Returns:
+ *   DishonestyCaseRecord — if this is a dishonesty case page
+ *   null — if it's a case page but not a dishonesty case
+ *   undefined — if the page can't be parsed as a case at all
+ *
+ * PII (student name) is hashed here and never leaves this function.
+ */
+export async function parsePage(): Promise<DishonestyCaseRecord | null | undefined> {
+  const recordId = getRecordIdFromUrl()
+  if (!recordId) return undefined
+
+  const caseNumber = getFieldByLabel("Case Number")
+  const studentName = getFieldByLabel("Student Name") ?? getFieldByLabel("Contact Name")
+  const statusRaw = getFieldByLabel("Status")
+  const createdAt = getFieldByLabel("Date/Time Opened") ?? getFieldByLabel("Created Date") ?? ""
+  const courseId = getFieldByLabel("Course ID") ?? getFieldByLabel("Course")
+  const incidentRaw = getFieldByLabel("Incident Type") ?? getFieldByLabel("Type") ?? getFieldByLabel("Category")
+  const assignmentName = getFieldByLabel("Assignment Name") ?? getFieldByLabel("Assignment")
+  const policyReference = getFieldByLabel("Policy Reference") ?? getFieldByLabel("Policy") ?? getFieldByLabel("Violation Code")
+
+  // If there's no course ID or incident info, this probably isn't a dishonesty case
+  if (!courseId && !incidentRaw) {
+    return studentName ? null : undefined
+  }
+
+  const studentToken = studentName ? await anonymize(studentName) : "unknown"
+
+  return {
+    id: recordId,
+    studentToken,
+    status: normalizeStatus(statusRaw),
+    createdAt,
+    caseNumber: caseNumber ?? undefined,
+    courseId: courseId ?? "",
+    incidentType: classifyIncident(incidentRaw),
+    assignmentName: assignmentName ?? undefined,
+    policyReference: policyReference ?? undefined,
+  }
+}
+
+/**
  * Read the current page context. Call this once when the modal opens.
  */
-export function readPageContext(): SalesforcePageContext {
+export async function readPageContext(): Promise<SalesforcePageContext> {
+  const recordId = getRecordIdFromUrl()
+  const caseRecord = await parsePage()
+
   return {
-    recordId: getRecordIdFromUrl(),
-    courseId: getFieldByLabel("Course ID"),
+    recordId,
+    courseId: caseRecord?.courseId ?? getFieldByLabel("Course ID"),
+    caseRecord,
   }
 }
