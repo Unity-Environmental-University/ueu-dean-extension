@@ -1,0 +1,65 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Clone sibling repos that are local file deps
+      - name: Clone alkahest-ts
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/alkahest-ts
+          path: ../alkahest-ts
+
+      - name: Clone ueu-canvas-alkahest
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/ueu-canvas-alkahest
+          path: ../ueu-canvas-alkahest
+
+      # Install deps for sibling packages first
+      - run: cd ../alkahest-ts && npm install && npm run build --if-present
+      - run: cd ../ueu-canvas-alkahest && npm install && npm run build --if-present
+
+      - run: npm install
+      - run: npm run build
+
+      # Package as zip for Chrome Web Store and Firefox Add-ons
+      - name: Package Chrome extension
+        run: cd dist/chrome && zip -r ../../ueu-dean-tools-chrome.zip .
+
+      - name: Package Firefox extension
+        run: cd dist/firefox && zip -r ../../ueu-dean-tools-firefox.zip .
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-builds
+          path: |
+            ueu-dean-tools-chrome.zip
+            ueu-dean-tools-firefox.zip
+
+      # Create GitHub release on tag push
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ueu-dean-tools-chrome.zip
+            ueu-dean-tools-firefox.zip
+          generate_release_notes: true
