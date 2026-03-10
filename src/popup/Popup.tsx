@@ -43,7 +43,7 @@ export function Popup() {
   }
 
   return (
-    <div style={{ padding: "0.75rem", width: "340px", "font-family": "system-ui, sans-serif", "font-size": "13px" }}>
+    <div style={{ padding: "0.75rem", width: "400px", "font-family": "system-ui, sans-serif", "font-size": "13px" }}>
       <form onSubmit={onSubmit} style={{ display: "flex", gap: "0.5rem" }}>
         <input
           autofocus

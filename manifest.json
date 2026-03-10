@@ -14,7 +14,7 @@
     }
   },
 
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "cookies"],
 
   "host_permissions": [
     "https://*.salesforce.com/*",
@@ -34,7 +34,7 @@
 
   "commands": {
     "reload-extension": {
-      "suggested_key": { "default": "Alt+Shift+R" },
+      "suggested_key": { "default": "Ctrl+Shift+U" },
       "description": "Reload extension"
     },
     "_execute_action": {
@@ -42,6 +42,13 @@
       "description": "Open course search"
     }
   },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["src/content/page-bridge.js"],
+      "matches": ["https://*.salesforce.com/*", "https://*.force.com/*"]
+    }
+  ],
 
   "content_scripts": [
     {

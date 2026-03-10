@@ -1,38 +1,12 @@
 /**
- * CanvasLink + CaseInfo — reads the current SF page, shows case details
- * and a direct Canvas link.
+ * CaseView — reads from the reactive API-driven state.
  *
- * All data is anonymized. No PII enters the component tree.
+ * Shows case info, dishonesty details, and Canvas link.
+ * All data comes from SF REST API — no DOM scraping.
  */
 
-import { createResource, Show } from "solid-js"
-import { readPageContext } from "../content/salesforce"
-
-const CANVAS_BASE = "https://unity.instructure.com/courses"
-
-const LABEL_STYLE = {
-  margin: "0 0 0.5rem",
-  "font-size": "0.75rem",
-  "text-transform": "uppercase" as const,
-  "letter-spacing": "0.05em",
-  color: "#888",
-}
-
-const PILL_STYLE = (color: string) => ({
-  display: "inline-block",
-  padding: "0.15rem 0.5rem",
-  "border-radius": "999px",
-  "font-size": "0.75rem",
-  "font-weight": "600",
-  background: color,
-  color: "white",
-})
-
-const STATUS_COLORS: Record<string, string> = {
-  open: "#d97706",
-  pending: "#2563eb",
-  resolved: "#16a34a",
-}
+import { createSignal, onCleanup, Show } from "solid-js"
+import { state } from "../content/features"
 
 const INCIDENT_LABELS: Record<string, string> = {
   plagiarism: "Plagiarism",
@@ -42,85 +16,107 @@ const INCIDENT_LABELS: Record<string, string> = {
 }
 
 export function CanvasLink() {
-  const [ctx] = createResource(readPageContext)
+  const [version, setVersion] = createSignal(0)
+  const bump = () => setVersion(v => v + 1)
+  state.listeners.add(bump)
+  onCleanup(() => state.listeners.delete(bump))
 
-  const href = () => {
-    const c = ctx()
-    return c?.courseId ? `${CANVAS_BASE}/${c.courseId}` : null
-  }
-
-  const rec = () => ctx()?.caseRecord
+  const caseData = () => { version(); return state.caseData }
+  const dishonesty = () => { version(); return state.dishonesty }
+  const canvas = () => { version(); return state.canvas }
+  const loading = () => { version(); return state.loading }
+  const error = () => { version(); return state.error }
 
   return (
     <div>
-      {/* Case details */}
-      <Show when={rec()}>
-        {r => (
-          <div style={{ "margin-bottom": "1.25rem" }}>
-            <h3 style={LABEL_STYLE}>Case</h3>
-            <div style={{ display: "flex", gap: "0.5rem", "align-items": "center", "flex-wrap": "wrap" }}>
-              <Show when={r().caseNumber}>
-                <span style={{ "font-weight": "600", "font-size": "0.9rem" }}>{r().caseNumber}</span>
-              </Show>
-              <span style={PILL_STYLE(STATUS_COLORS[r().status] ?? "#888")}>{r().status}</span>
-              <span style={PILL_STYLE("#6b21a8")}>{INCIDENT_LABELS[r().incidentType] ?? r().incidentType}</span>
-            </div>
+      <Show when={error()}>
+        <p class="ueu-error">{error()}</p>
+      </Show>
 
-            <div style={{ "margin-top": "0.5rem", "font-size": "0.85rem", color: "#555" }}>
-              <Show when={r().assignmentName}>
-                <div>Assignment: {r().assignmentName}</div>
+      <Show when={loading()}>
+        <p class="ueu-muted">Loading...</p>
+      </Show>
+
+      {/* Case info */}
+      <Show when={caseData()}>
+        {info => (
+          <article>
+            <h3 class="ueu-label">Case</h3>
+            <div class="ueu-case-meta">
+              <span class="ueu-case-number">{info().caseNumber}</span>
+              <span class="ueu-pill" data-status={info().status.toLowerCase()}>{info().status}</span>
+              <Show when={info().type}>
+                <span class="ueu-pill-outline">{info().type}</span>
               </Show>
-              <Show when={r().policyReference}>
-                <div>Policy: {r().policyReference}</div>
-              </Show>
-              <Show when={r().createdAt}>
-                <div>Opened: {r().createdAt}</div>
-              </Show>
-              <div style={{ "margin-top": "0.25rem", color: "#999", "font-size": "0.75rem" }}>
-                Student token: {r().studentToken.slice(0, 8)}
-              </div>
             </div>
-          </div>
+            <Show when={info().subject}>
+              <p class="ueu-subject">{info().subject}</p>
+            </Show>
+          </article>
         )}
       </Show>
 
-      {/* Show "not a dishonesty case" when parsePage returned null */}
-      <Show when={ctx() && rec() === null && ctx()!.recordId}>
-        <p style={{ margin: "0 0 1rem", color: "#999", "font-size": "0.85rem" }}>
-          This case doesn't appear to be a dishonesty record.
-        </p>
+      {/* Dishonesty details */}
+      <Show when={dishonesty()}>
+        {d => (
+          <article>
+            <h3 class="ueu-label">Academic Dishonesty</h3>
+            <div class="ueu-case-meta">
+              <span class="ueu-pill" data-incident>{INCIDENT_LABELS[d().incidentType] ?? d().incidentType}</span>
+            </div>
+            <dl class="ueu-case-fields">
+              <Show when={d().courseOfferingName}>
+                <dt>Course</dt><dd>{d().courseOfferingName}</dd>
+              </Show>
+              <Show when={d().assignmentName}>
+                <dt>Assignment</dt><dd>{d().assignmentName}</dd>
+              </Show>
+              <Show when={d().instructor}>
+                <dt>Instructor</dt><dd>{d().instructor}</dd>
+              </Show>
+              <Show when={d().severity}>
+                <dt>Severity</dt><dd>{d().severity}</dd>
+              </Show>
+            </dl>
+          </article>
+        )}
       </Show>
 
       {/* Canvas link */}
-      <h3 style={LABEL_STYLE}>Canvas</h3>
-      <Show
-        when={href()}
-        fallback={
-          <p style={{ margin: 0, color: "#999", "font-size": "0.9rem" }}>
-            {ctx()?.recordId
-              ? "Course ID not found on this page."
-              : ctx.loading
-                ? "Reading page..."
-                : "No Salesforce record detected."}
-          </p>
-        }
-      >
-        <a
-          href={href()!}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-flex",
-            "align-items": "center",
-            gap: "0.4rem",
-            color: "#2d6a4f",
-            "font-weight": "600",
-            "text-decoration": "none",
-            "font-size": "0.95rem",
-          }}
-        >
-          Open course in Canvas →
-        </a>
+      <Show when={canvas()}>
+        {c => (
+          <article>
+            <h3 class="ueu-label">Canvas</h3>
+            <div class="ueu-canvas-links">
+              <a href={c().url} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                Course &rarr;
+              </a>
+              <a href={`${c().url}/gradebook`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                Gradebook &rarr;
+              </a>
+            </div>
+            <Show when={c().studentId}>
+              <h3 class="ueu-label" style={{"margin-top": "0.75rem"}}>Student in Canvas</h3>
+              <p class="ueu-muted" style={{"margin-bottom": "0.4rem"}}>{c().studentName}</p>
+              <div class="ueu-canvas-links">
+                <a href={`${c().url}/grades/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                  Grades &rarr;
+                </a>
+                <a href={`https://unity.instructure.com/users/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                  Profile &rarr;
+                </a>
+                <a href={`https://unity.instructure.com/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                  Act as &rarr;
+                </a>
+              </div>
+            </Show>
+          </article>
+        )}
+      </Show>
+
+      {/* No data state */}
+      <Show when={!loading() && !caseData() && !error()}>
+        <p class="ueu-muted">Navigate to a Case or Course Offering page.</p>
       </Show>
     </div>
   )

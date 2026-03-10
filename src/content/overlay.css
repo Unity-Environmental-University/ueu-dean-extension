@@ -1,0 +1,248 @@
+/* UEU Dean Tools — overlay styles injected into Shadow DOM */
+
+.ueu-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 2147483647;
+  background: #2d6a4f;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 3rem;
+  height: 3rem;
+  cursor: pointer;
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.ueu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ueu-dialog {
+  background: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  min-width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: #222;
+}
+
+.ueu-dialog header {
+  margin-bottom: 1.5rem;
+}
+
+.ueu-dialog h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.ueu-dialog footer {
+  margin-top: 1rem;
+  text-align: right;
+}
+
+/* Case details */
+
+.ueu-case-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ueu-pill {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+}
+
+.ueu-pill[data-status="open"]     { background: #d97706; }
+.ueu-pill[data-status="pending"]  { background: #2563eb; }
+.ueu-pill[data-status="resolved"] { background: #16a34a; }
+.ueu-pill[data-incident]          { background: #6b21a8; }
+
+.ueu-case-number {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.ueu-case-fields {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.ueu-case-fields dt {
+  display: inline;
+  font-weight: 500;
+}
+
+.ueu-case-fields dt::after {
+  content: ": ";
+}
+
+.ueu-case-fields dd {
+  display: inline;
+  margin: 0;
+}
+
+.ueu-case-fields dd::after {
+  content: "\a";
+  white-space: pre;
+}
+
+.ueu-error {
+  margin: 0 0 0.5rem;
+  color: #dc2626;
+  font-size: 0.85rem;
+}
+
+.ueu-subject {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.ueu-pill-outline {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #555;
+  border: 1px solid #ccc;
+}
+
+.ueu-token {
+  margin-top: 0.25rem;
+  color: #999;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.ueu-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+}
+
+.ueu-canvas-links {
+  display: flex;
+  gap: 1rem;
+}
+
+.ueu-canvas-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #2d6a4f;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.ueu-muted {
+  margin: 0;
+  color: #999;
+  font-size: 0.85rem;
+}
+
+/* Consent */
+
+.ueu-consent h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.ueu-consent p {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #555;
+  line-height: 1.5;
+}
+
+.ueu-consent ul {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  font-size: 0.8rem;
+  color: #666;
+  line-height: 1.6;
+}
+
+.ueu-btn-consent {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  background: #2d6a4f;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ueu-btn-revoke {
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid #dc2626;
+  background: white;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+/* Dev tools */
+
+.ueu-dev {
+  margin-top: 1.5rem;
+  border-top: 1px solid #eee;
+  padding-top: 1rem;
+}
+
+.ueu-dev summary {
+  color: #aaa;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.ueu-dev button {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  color: #333;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.ueu-dev button.ueu-btn-copied {
+  background: #16a34a;
+  color: white;
+  border-color: #16a34a;
+}
+
+.ueu-dev small {
+  display: block;
+  margin-top: 0.3rem;
+  color: #aaa;
+  font-size: 0.7rem;
+}

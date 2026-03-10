@@ -1,10 +1,11 @@
 /**
- * Content script — injected into Salesforce and Canvas pages.
+ * Content script — injected into Salesforce pages.
  *
- * Mounts the overlay root and watches for dynamic navigation
- * (Salesforce is a SPA, so we need a MutationObserver).
+ * Watches URL for record page navigation, fetches data via SF API,
+ * and mounts the overlay UI.
  */
 
+import { startWatching } from "./features"
 import { mountOverlay } from "./overlay"
 
 let mounted = false
@@ -13,14 +14,15 @@ function tryMount() {
   if (mounted) return
   const root = document.body
   if (!root) return
+
+  startWatching()
   mountOverlay(root)
   mounted = true
 }
 
-// Initial mount
 tryMount()
 
-// Re-check on DOM mutations (Salesforce SPA navigation)
+// Salesforce is a SPA — re-check if we haven't mounted yet
 const observer = new MutationObserver(() => {
   if (!mounted) tryMount()
 })

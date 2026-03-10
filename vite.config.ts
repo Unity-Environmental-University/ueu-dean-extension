@@ -31,6 +31,7 @@ export default defineConfig({
     webExtension({
       manifest: browserManifest,
       browser,
+      additionalInputs: ["src/content/page-bridge.ts"],
     }),
   ],
 })
