@@ -156,7 +156,7 @@ async function resolveCopToCoId(copId: string): Promise<{ coId: string | null; e
   try {
     const cop = await getRecord<Record<string, unknown>>("CourseOfferingParticipant", copId)
     const result = {
-      coId: pick(cop, "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c"),
+      coId: pick(cop, "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c", "Course_Offering_ID__c", "CourseOffering__c"),
       enrollmentId: pick(cop, "Canvas_Enrollment_ID__c", "CanvasEnrollmentId__c"),
       contactId: pick(cop, "hed__Contact__c", "ContactId", "Contact__c"),
     }
@@ -179,16 +179,21 @@ async function resolveStudentFromEnrollment(enrollmentId: string, fallbackEmail:
   }
 
   try {
-    const enrollment = await canvasFetch<{ id: number; user_id: number; user: { name: string } }>(
-      `/api/v1/courses/${courseId}/enrollments/${enrollmentId}`
+    const enrollments = await canvasFetch<Array<{ id: number; user_id: number; user: { name: string } }>>(
+      `/api/v1/courses/${courseId}/enrollments?enrollment_id[]=${enrollmentId}`
     )
-    if (state.canvas) {
+    diag("enrollment-lookup", `found ${enrollments.length} result(s) for enrollment ${enrollmentId} in course ${courseId}`)
+    const enrollment = enrollments[0]
+    if (enrollment && state.canvas) {
       state.canvas.studentId = String(enrollment.user_id)
       state.canvas.studentName = enrollment.user?.name ?? null
+      state.loadingStudent = false
+      state.notify()
+      return
     }
-    state.loadingStudent = false
-    state.notify()
+    diag("enrollment-lookup", "enrollment found but empty — falling back")
   } catch (e) {
+    diag("enrollment-lookup", `failed: ${e}`)
     if (isAuthError(e)) {
       state.loadingStudent = false
       state.studentError = "canvas-session-required"
@@ -409,14 +414,32 @@ async function loadCase(recordId: string, token: number) {
       subject: f("Subject", "Subject") ?? "",
     }
 
+    // COP is the clearinghouse record — fetch it first if present.
+    // It gives us coId, enrollmentId, and contactId in one shot, for any case type.
+    const copId = f("Course Offering Participant", "Course_Offering_Participant__c", "CourseOfferingParticipant__c")
+    let copCoId: string | null = null
+    let copEnrollmentId: string | null = null
+    let copContactId: string | null = null
+
+    if (copId) {
+      const cop = await resolveCopToCoId(copId)
+      if (stale(token)) return
+      copCoId = cop.coId
+      copEnrollmentId = cop.enrollmentId
+      copContactId = cop.contactId
+    }
+
+    // Resolve the course offering ID — prefer COP's link, fall back to direct case field
+    const caseCoId = f("Course Offering", "Course_Offering__c", "CourseOffering__c")
+    const resolvedCoId = copCoId ?? caseCoId
+
     // Dishonesty fields (may or may not be on this case)
-    const courseOfferingId = f("Course Offering", "Course_Offering__c", "CourseOffering__c")
     const incidentRaw = f("Incident Type", "Incident_Type__c", "Type_of_Incident__c", "Category__c")
     const assignmentName = f("Assignment", "Assignment__c", "Assignment_Name__c")
 
-    if (courseOfferingId || incidentRaw) {
+    if (resolvedCoId || incidentRaw) {
       state.dishonesty = {
-        courseOfferingId,
+        courseOfferingId: resolvedCoId,
         courseOfferingName: null, // will fill from CO record
         incidentType: classifyIncident(incidentRaw),
         assignmentName,
@@ -425,11 +448,11 @@ async function loadCase(recordId: string, token: number) {
         instructorEmail: f("Instructor Email", "Instructor_Email__c"),
       }
 
-      if (courseOfferingId) {
+      if (resolvedCoId) {
         await resolveCanvasAndStudent({
-          coId: courseOfferingId,
-          enrollmentId: null,
-          contactId: null,
+          coId: resolvedCoId,
+          enrollmentId: copEnrollmentId,
+          contactId: copContactId,
           email: state.caseData?.contactEmail ?? null,
           onName: (name) => { if (!stale(token) && state.dishonesty) state.dishonesty.courseOfferingName = name },
           token,
@@ -444,23 +467,10 @@ async function loadCase(recordId: string, token: number) {
     const currentGrade = f("Current Grade", "Current_Grade__c", "CurrentGrade__c")
     const changedGrade = f("Changed Grade", "Changed_Grade__c", "ChangedGrade__c")
     const decisionStatus = f("Decision Status", "Decision_Status__c", "DecisionStatus__c")
-    const copId = f("Course Offering Participant", "Course_Offering_Participant__c", "CourseOfferingParticipant__c")
 
-    if (appealReason || currentGrade || copId) {
-      let coId = f("Course Offering", "Course_Offering__c", "CourseOffering__c")
-      let enrollmentId: string | null = null
-      let contactId: string | null = null
-
-      if (!coId && copId) {
-        const cop = await resolveCopToCoId(copId)
-        if (stale(token)) return
-        coId = cop.coId
-        enrollmentId = cop.enrollmentId
-        contactId = cop.contactId
-      }
-
+    if (appealReason || currentGrade || (copId && !state.dishonesty)) {
       state.gradeAppeal = {
-        courseOfferingId: coId,
+        courseOfferingId: resolvedCoId,
         courseOfferingName: null,
         courseOfferingParticipantId: copId,
         currentGrade,
@@ -471,11 +481,12 @@ async function loadCase(recordId: string, token: number) {
         instructorEmail: f("Instructor Email", "Instructor_Email__c"),
       }
 
-      if (coId) {
+      // Only resolve Canvas here if dishonesty didn't already do it
+      if (resolvedCoId && !state.canvas) {
         await resolveCanvasAndStudent({
-          coId,
-          enrollmentId,
-          contactId,
+          coId: resolvedCoId,
+          enrollmentId: copEnrollmentId,
+          contactId: copContactId,
           email: state.caseData?.contactEmail ?? null,
           onName: (name) => { if (!stale(token) && state.gradeAppeal) state.gradeAppeal.courseOfferingName = name },
           token,
