@@ -275,6 +275,19 @@ export function Overlay() {
               </button>
               <small>Copies extension state — paste to Claude to debug field mapping</small>
 
+              <Show when={state.copRaw}>
+                <details class="ueu-dev-raw">
+                  <summary>COP raw fields</summary>
+                  <pre class="ueu-dev-raw-pre">{JSON.stringify(state.copRaw, null, 2)}</pre>
+                </details>
+              </Show>
+              <Show when={state.contactRaw}>
+                <details class="ueu-dev-raw">
+                  <summary>Contact raw fields</summary>
+                  <pre class="ueu-dev-raw-pre">{JSON.stringify(state.contactRaw, null, 2)}</pre>
+                </details>
+              </Show>
+
               <div class="ueu-dev-support">
                 <label class="ueu-dev-label">Support Canvas ID</label>
                 <input

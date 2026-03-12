@@ -177,6 +177,11 @@ export function CanvasLink() {
               <a href={`${c().url}/gradebook`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                 Gradebook &rarr;
               </a>
+              <Show when={c().enrollmentUrl}>
+                <a href={c().enrollmentUrl!} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link" style={{"color": "#999", "font-size": "0.8rem"}}>
+                  Enrollment &rarr;
+                </a>
+              </Show>
             </div>
             <Show when={loadingStudent()}>
               <p class="ueu-loading" style={{"margin-top": "0.5rem"}}>Looking up student&hellip;</p>
@@ -195,9 +200,14 @@ export function CanvasLink() {
             <Show when={studentError() && studentError() !== "canvas-session-required"}>
               <p class="ueu-warn">{studentError()}</p>
             </Show>
-            <Show when={c().studentId}>
-              <h3 class="ueu-label" style={{"margin-top": "0.75rem"}}>Student in Canvas</h3>
-              <p class="ueu-muted" style={{"margin-bottom": "0.4rem"}}>{c().studentName}</p>
+            <Show when={c().studentId || c().studentName}>
+              <h3 class="ueu-label" style={{"margin-top": "0.75rem"}}>Student</h3>
+              <p class="ueu-muted" style={{"margin-bottom": "0.4rem"}}>
+                {c().studentName}
+                <Show when={c().studentPronouns}>
+                  {" "}<span class="ueu-pronouns">({c().studentPronouns})</span>
+                </Show>
+              </p>
               <div class="ueu-canvas-links">
                 <a href={`${c().url}/grades/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                   Grades &rarr;

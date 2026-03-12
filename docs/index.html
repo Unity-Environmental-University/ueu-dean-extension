@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dean Tools</title>
+<style>
+
+:root {
+  --cream: #FAF7F2;
+  --ink: #251A10;
+  --ink-mid: #6B5344;
+  --ink-light: #A08070;
+  --coral: #D94F2A;
+  --brass: #B87D2A;
+  --teal: #1B7A68;
+  --grid: #EDE5D8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.75;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 80px 24px 64px;
+  width: 100%;
+}
+
+.eyebrow {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--brass);
+  margin-bottom: 14px;
+}
+
+h1 {
+  font-size: clamp(2em, 6vw, 3.2em);
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  margin-bottom: 16px;
+}
+
+.tagline {
+  font-size: 1.05em;
+  color: var(--ink-mid);
+  max-width: 480px;
+  margin-bottom: 64px;
+  line-height: 1.7;
+}
+
+.section-label {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--brass);
+  margin-bottom: 20px;
+}
+
+.feature-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 72px;
+}
+
+.feature-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border: 1.5px solid var(--grid);
+  border-radius: 8px;
+  padding: 22px 26px;
+  background: white;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+}
+
+.feature-card:hover {
+  border-color: var(--teal);
+  box-shadow: 0 4px 20px rgba(27, 122, 104, 0.1);
+  transform: translateY(-1px);
+}
+
+.feature-card:active {
+  transform: translateY(0);
+}
+
+.feature-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.feature-name {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.feature-arrow {
+  font-size: 0.9em;
+  color: var(--teal);
+  transition: transform 0.18s ease;
+}
+
+.feature-card:hover .feature-arrow {
+  transform: translateX(3px);
+}
+
+.feature-desc {
+  font-size: 0.92em;
+  color: var(--ink-mid);
+  line-height: 1.6;
+}
+
+footer {
+  border-top: 1px solid var(--grid);
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.footer-inner {
+  max-width: 720px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-credit {
+  font-size: 0.8em;
+  color: var(--ink-light);
+}
+
+.footer-link {
+  font-size: 0.8em;
+  color: var(--ink-light);
+  text-decoration: none;
+  border-bottom: 1px solid var(--grid);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--teal);
+  border-color: var(--teal);
+}
+
+</style>
+</head>
+<body>
+
+<main>
+  <div class="eyebrow">UEU Dean Extension</div>
+  <h1>Dean Tools</h1>
+  <p class="tagline">A browser extension that lives on your Salesforce cases and makes the next step shorter.</p>
+
+  <div class="section-label">Features</div>
+  <div class="feature-grid">
+
+    <a class="feature-card" href="case-navigation.html">
+      <div class="feature-card-header">
+        <span class="feature-name">Case Navigation</span>
+        <span class="feature-arrow">→</span>
+      </div>
+      <div class="feature-desc">Get from a case to Canvas grades without leaving the tab.</div>
+    </a>
+
+  </div>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-credit">Built by Unity Environmental University</span>
+    <a class="footer-link" href="changelog.md">Changelog</a>
+  </div>
+</footer>
+
+</body>
+</html>

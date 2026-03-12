@@ -69,9 +69,14 @@ export const state = {
   canvas: null as {
     courseId: string
     url: string
+    enrollmentUrl: string | null
     studentId: string | null
     studentName: string | null
+    studentPronouns: string | null
   } | null,
+
+  /** Raw Contact record for debugging */
+  contactRaw: null as Record<string, unknown> | null,
 
   /** Granular loading / error state */
   loading: false,
@@ -80,6 +85,9 @@ export const state = {
   error: null as string | null,
   courseOfferingError: null as string | null,
   studentError: null as string | null,
+
+  /** Raw COP record for debugging */
+  copRaw: null as Record<string, unknown> | null,
 
   /** Diagnostic log — field misses and resolution path for this page load */
   diagnostics: [] as Array<{ type: string; detail: string }>,
@@ -151,20 +159,53 @@ function makeFieldAccessor(record: Record<string, unknown>, fieldMap: Map<string
   }
 }
 
-/** Follow Course Offering Participant → return coId and student lookup hints (no side effects) */
-async function resolveCopToCoId(copId: string): Promise<{ coId: string | null; enrollmentId: string | null; contactId: string | null }> {
+/** Follow Course Offering Participant → return coId and student info (no side effects) */
+async function resolveCopToCoId(copId: string): Promise<{
+  coId: string | null
+  enrollmentId: string | null
+  contactId: string | null
+  accountId: string | null
+  preferredName: string | null
+  unityId: string | null
+}> {
   try {
     const cop = await getRecord<Record<string, unknown>>("CourseOfferingParticipant", copId)
+    state.copRaw = cop
     const result = {
-      coId: pick(cop, "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c", "Course_Offering_ID__c", "CourseOffering__c"),
+      coId: pick(cop, "CourseOfferingId", "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c", "Course_Offering_ID__c", "CourseOffering__c"),
       enrollmentId: pick(cop, "Canvas_Enrollment_ID__c", "CanvasEnrollmentId__c"),
-      contactId: pick(cop, "hed__Contact__c", "ContactId", "Contact__c"),
+      contactId: pick(cop, "ParticipantContactId", "hed__Contact__c", "ContactId", "Contact__c"),
+      accountId: pick(cop, "ParticipantAccountId", "AccountId"),
+      preferredName: pick(cop, "Preferred_Student_Name__c", "PreferredName__c"),
+      unityId: pick(cop, "Unity_ID__c", "UnityId__c"),
     }
-    diag("cop-resolved", `coId=${result.coId ?? "null"} enrollmentId=${result.enrollmentId ?? "null"} contactId=${result.contactId ?? "null"}`)
+    diag("cop-resolved", `coId=${result.coId ?? "null"} preferredName=${result.preferredName ?? "null"} unityId=${result.unityId ?? "null"} accountId=${result.accountId ?? "null"}`)
     return result
   } catch (e) {
     diag("cop-error", String(e))
-    return { coId: null, enrollmentId: null, contactId: null }
+    return { coId: null, enrollmentId: null, contactId: null, accountId: null, preferredName: null, unityId: null }
+  }
+}
+
+/** Fetch Person Account to get Canvas user ID and gender identity */
+async function resolveFromAccount(accountId: string) {
+  try {
+    const account = await getRecord<Record<string, unknown>>("Account", accountId)
+    state.contactRaw = account  // reuse slot for display in Dev
+    const canvasUserId = pick(account, "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c", "Canvas_User__c")
+    const genderIdentity = pick(account, "Gender_Identity__c", "GenderIdentity__c", "Gender__c", "Pronouns__c", "Preferred_Pronouns__c")
+    diag("account-resolved", `canvasUserId=${canvasUserId ?? "null"} genderIdentity=${genderIdentity ?? "null"}`)
+    if (state.canvas) {
+      if (canvasUserId && !state.canvas.studentId) {
+        state.canvas.studentId = canvasUserId
+      }
+      if (genderIdentity) {
+        state.canvas.studentPronouns = genderIdentity
+      }
+      state.notify()
+    }
+  } catch (e) {
+    diag("account-error", String(e))
   }
 }
 
@@ -179,8 +220,11 @@ async function resolveStudentFromEnrollment(enrollmentId: string, fallbackEmail:
   }
 
   try {
+    const enrollmentUrl = `https://unity.instructure.com/courses/${courseId}/enrollments/${enrollmentId}`
+    if (state.canvas) state.canvas.enrollmentUrl = enrollmentUrl
+    diag("enrollment-url", enrollmentUrl)
     const enrollments = await canvasFetch<Array<{ id: number; user_id: number; user: { name: string } }>>(
-      `/api/v1/courses/${courseId}/enrollments?enrollment_id[]=${enrollmentId}`
+      `/api/v1/courses/${courseId}/enrollments?enrollment_id[]=${enrollmentId}&type[]=StudentEnrollment&state[]=active&state[]=inactive&state[]=completed`
     )
     diag("enrollment-lookup", `found ${enrollments.length} result(s) for enrollment ${enrollmentId} in course ${courseId}`)
     const enrollment = enrollments[0]
@@ -303,15 +347,21 @@ async function lookupCanvasStudentByEmail(email: string) {
  */
 async function resolveCanvasAndStudent(opts: {
   coId: string
-  enrollmentId: string | null
-  contactId: string | null
+  preferredName: string | null
+  unityId: string | null
+  accountId: string | null
   email: string | null
   onName: (name: string) => void
   token: number
 }) {
   const canvasId = await resolveCanvasFromCo(opts.coId, opts.onName)
   if (canvasId && !stale(opts.token)) {
-    await resolveStudent({ enrollmentId: opts.enrollmentId, contactId: opts.contactId, email: opts.email })
+    await resolveStudent({
+      preferredName: opts.preferredName,
+      unityId: opts.unityId,
+      accountId: opts.accountId,
+      email: opts.email,
+    })
   }
 }
 
@@ -337,7 +387,7 @@ async function resolveCanvasFromCo(coId: string, onName: (name: string) => void)
     }
 
     diag("canvas-id-resolved", canvasId)
-    state.canvas = { courseId: canvasId, url: `https://unity.instructure.com/courses/${canvasId}`, studentId: null, studentName: null }
+    state.canvas = { courseId: canvasId, url: `https://unity.instructure.com/courses/${canvasId}`, enrollmentUrl: null, studentId: null, studentName: null }
     state.notify()
     return canvasId
   } catch (e) {
@@ -349,30 +399,60 @@ async function resolveCanvasFromCo(coId: string, onName: (name: string) => void)
   }
 }
 
-/** Resolve student after canvas is set — tries enrollment → contact → email in order */
-async function resolveStudent(opts: { enrollmentId?: string | null; contactId?: string | null; email?: string | null }) {
+/** Resolve student — prefers COP data (name + unityId) over Canvas API lookups */
+async function resolveStudent(opts: {
+  preferredName?: string | null
+  unityId?: string | null
+  accountId?: string | null
+  enrollmentId?: string | null
+  email?: string | null
+}) {
   state.loadingStudent = true
   state.studentError = null
   state.notify()
 
-  if (opts.enrollmentId) {
-    diag("student-lookup-path", `enrollment:${opts.enrollmentId}`)
-    await resolveStudentFromEnrollment(opts.enrollmentId, opts.email ?? null)
-    return
+  // Set name from COP directly — no Canvas API needed
+  if (opts.preferredName && state.canvas) {
+    state.canvas.studentName = opts.preferredName
+    diag("student-lookup-path", `cop-name:${opts.preferredName}`)
   }
-  if (opts.contactId) {
-    diag("student-lookup-path", `contact:${opts.contactId}`)
-    await resolveStudentFromContact(opts.contactId, opts.email ?? null)
-    return
+
+  // Fetch Canvas user ID and gender identity from Person Account in background
+  if (opts.accountId) {
+    resolveFromAccount(opts.accountId)
   }
-  if (opts.email) {
+
+  // Get Canvas user ID via sis_user_id (Unity ID) for grade/profile/masquerade links
+  if (opts.unityId) {
+    diag("student-lookup-path", `sis_user_id:${opts.unityId}`)
+    try {
+      const user = await canvasFetch<{ id: number; name: string }>(
+        `/api/v1/users/sis_user_id:${opts.unityId}`
+      )
+      if (user?.id && state.canvas) {
+        state.canvas.studentId = String(user.id)
+        if (!opts.preferredName) state.canvas.studentName = user.name
+        diag("student-lookup-path", `sis_user_id resolved: ${user.id}`)
+      }
+    } catch (e) {
+      diag("sis-lookup", `failed: ${e}`)
+      if (isAuthError(e)) {
+        state.studentError = "canvas-session-required"
+        state.loadingStudent = false
+        state.notify()
+        return
+      }
+    }
+  } else if (opts.email) {
     diag("student-lookup-path", `email:${opts.email}`)
     await lookupCanvasStudentByEmail(opts.email)
     return
+  } else if (!opts.preferredName) {
+    state.studentError = "No student identifier available"
+    diag("student-lookup-path", "no identifier available")
   }
+
   state.loadingStudent = false
-  state.studentError = "No student identifier available"
-  diag("student-lookup-path", "no identifier available")
   state.notify()
 }
 
@@ -386,9 +466,11 @@ async function loadCase(recordId: string, token: number) {
   state.caseData = null
   state.dishonesty = null
   state.gradeAppeal = null
-  state.canvas = null
+  state.canvas = null  // clears studentId/studentName immediately so stale data never shows
+  state.copRaw = null
+  state.contactRaw = null
   state.diagnostics = []
-  state.notify()
+  state.notify()  // fire immediately so UI wipes before any async work starts
 
   try {
     // Fetch the record first — fast, stale check before anything else
@@ -418,15 +500,17 @@ async function loadCase(recordId: string, token: number) {
     // It gives us coId, enrollmentId, and contactId in one shot, for any case type.
     const copId = f("Course Offering Participant", "Course_Offering_Participant__c", "CourseOfferingParticipant__c")
     let copCoId: string | null = null
-    let copEnrollmentId: string | null = null
-    let copContactId: string | null = null
+    let copAccountId: string | null = null
+    let copPreferredName: string | null = null
+    let copUnityId: string | null = null
 
     if (copId) {
       const cop = await resolveCopToCoId(copId)
       if (stale(token)) return
       copCoId = cop.coId
-      copEnrollmentId = cop.enrollmentId
-      copContactId = cop.contactId
+      copAccountId = cop.accountId
+      copPreferredName = cop.preferredName
+      copUnityId = cop.unityId
     }
 
     // Resolve the course offering ID — prefer COP's link, fall back to direct case field
@@ -451,8 +535,9 @@ async function loadCase(recordId: string, token: number) {
       if (resolvedCoId) {
         await resolveCanvasAndStudent({
           coId: resolvedCoId,
-          enrollmentId: copEnrollmentId,
-          contactId: copContactId,
+          preferredName: copPreferredName,
+          unityId: copUnityId,
+          accountId: copAccountId,
           email: state.caseData?.contactEmail ?? null,
           onName: (name) => { if (!stale(token) && state.dishonesty) state.dishonesty.courseOfferingName = name },
           token,
@@ -485,8 +570,9 @@ async function loadCase(recordId: string, token: number) {
       if (resolvedCoId && !state.canvas) {
         await resolveCanvasAndStudent({
           coId: resolvedCoId,
-          enrollmentId: copEnrollmentId,
-          contactId: copContactId,
+          preferredName: copPreferredName,
+          unityId: copUnityId,
+          accountId: copAccountId,
           email: state.caseData?.contactEmail ?? null,
           onName: (name) => { if (!stale(token) && state.gradeAppeal) state.gradeAppeal.courseOfferingName = name },
           token,
@@ -520,6 +606,7 @@ async function loadCourseOffering(recordId: string, token: number) {
       state.canvas = {
         courseId: canvasId,
         url: `https://unity.instructure.com/courses/${canvasId}`,
+        enrollmentUrl: null,
         studentId: null,
         studentName: null,
       }
@@ -535,8 +622,15 @@ async function loadCourseOffering(recordId: string, token: number) {
   }
 }
 
-/** Handle a URL change — detect record page and fetch data */
-async function onNavigate() {
+let navigateTimer: ReturnType<typeof setTimeout> | null = null
+
+/** Handle a URL change — debounced to let SF's SPA routing settle */
+function onNavigate() {
+  if (navigateTimer) clearTimeout(navigateTimer)
+  navigateTimer = setTimeout(doNavigate, 80)
+}
+
+async function doNavigate() {
   const parsed = parseRecordUrl(window.location.pathname)
 
   // Clear state if we left a record page
