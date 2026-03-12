@@ -51,7 +51,42 @@
 
 .ueu-dialog footer {
   margin-top: 1rem;
-  text-align: right;
+}
+
+.ueu-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ueu-btn-feedback {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ueu-btn-feedback:hover {
+  color: #666;
+}
+
+.ueu-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ueu-feedback-input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-family: system-ui, sans-serif;
+  resize: vertical;
+  color: #333;
 }
 
 /* Case details */

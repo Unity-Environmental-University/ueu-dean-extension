@@ -14,6 +14,9 @@ export function Overlay() {
   const [open, setOpen] = createSignal(false)
   const [copied, setCopied] = createSignal(false)
   const [sendStatus, setSendStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
+  const [feedbackOpen, setFeedbackOpen] = createSignal(false)
+  const [feedbackText, setFeedbackText] = createSignal("")
+  const [feedbackStatus, setFeedbackStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
 
   // Load permissions and settings reactively
   const [perms, { refetch: refetchPerms }] = createResource(getPermissions)
@@ -143,6 +146,29 @@ export function Overlay() {
     } catch {
       setSendStatus("error")
       setTimeout(() => setSendStatus("idle"), 3000)
+    }
+  }
+
+  async function handleSendFeedback() {
+    const text = feedbackText().trim()
+    if (!text) return
+    setFeedbackStatus("sending")
+    try {
+      const settings = await getSettings()
+      const caseNum = state.caseData?.caseNumber ?? state.page?.recordId ?? ""
+      const subject = caseNum ? `Dean Tools feedback — case ${caseNum}` : "Dean Tools feedback"
+      await browser.runtime.sendMessage({
+        type: "canvas-message",
+        recipientId: settings.supportCanvasId,
+        subject,
+        body: text,
+      })
+      setFeedbackStatus("sent")
+      setFeedbackText("")
+      setTimeout(() => { setFeedbackStatus("idle"); setFeedbackOpen(false) }, 2000)
+    } catch {
+      setFeedbackStatus("error")
+      setTimeout(() => setFeedbackStatus("idle"), 3000)
     }
   }
 
@@ -293,7 +319,34 @@ export function Overlay() {
             </details>
 
             <footer>
-              <button onClick={() => setOpen(false)}>Close</button>
+              <Show when={feedbackOpen()} fallback={
+                <div class="ueu-footer-row">
+                  <button onClick={() => setOpen(false)}>Close</button>
+                  <button class="ueu-btn-feedback" onClick={() => setFeedbackOpen(true)}>
+                    Feedback / request
+                  </button>
+                </div>
+              }>
+                <div class="ueu-feedback">
+                  <textarea
+                    class="ueu-feedback-input"
+                    placeholder="What's working, what's not, what would help…"
+                    rows={3}
+                    value={feedbackText()}
+                    onInput={e => setFeedbackText(e.currentTarget.value)}
+                  />
+                  <div class="ueu-footer-row">
+                    <button onClick={() => { setFeedbackOpen(false); setFeedbackText("") }}>Cancel</button>
+                    <button
+                      class="ueu-btn-consent"
+                      disabled={!feedbackText().trim() || feedbackStatus() === "sending"}
+                      onClick={handleSendFeedback}
+                    >
+                      {feedbackStatus() === "sending" ? "Sending…" : feedbackStatus() === "sent" ? "Sent!" : feedbackStatus() === "error" ? "Failed" : "Send"}
+                    </button>
+                  </div>
+                </div>
+              </Show>
             </footer>
           </dialog>
         </div>
