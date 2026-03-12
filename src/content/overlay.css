@@ -278,3 +278,25 @@
   color: #aaa;
   font-size: 0.7rem;
 }
+
+.ueu-dev-support {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.ueu-dev-label {
+  font-size: 0.7rem;
+  color: #aaa;
+}
+
+.ueu-dev-input {
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 0.8rem;
+  font-family: monospace;
+  color: #333;
+  width: 100%;
+}

@@ -59,18 +59,23 @@ async function sfApiFetch(sfHost: string, path: string): Promise<unknown> {
 
 const CANVAS_HOST = "unity.instructure.com"
 
-async function canvasApiFetch(path: string): Promise<unknown> {
+async function canvasApiFetch(path: string, options: { method?: string; body?: unknown } = {}): Promise<unknown> {
   const cookie = await browser.cookies.get({
     url: `https://${CANVAS_HOST}`,
     name: "_csrf_token",
   })
 
-  // Canvas uses cookie-based auth — just include credentials
+  const csrfToken = cookie?.value ? decodeURIComponent(cookie.value) : undefined
+  const method = options.method ?? "GET"
+
   const res = await fetch(`https://${CANVAS_HOST}${path}`, {
+    method,
     headers: {
       "Accept": "application/json",
-      ...(cookie?.value ? { "X-CSRF-Token": decodeURIComponent(cookie.value) } : {}),
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
     },
+    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
   })
 
   if (!res.ok) {
@@ -90,6 +95,14 @@ browser.runtime.onMessage.addListener((message, _sender) => {
   if (message.type === "canvas-api") {
     const { path } = message as { path: string }
     return canvasApiFetch(path)
+  }
+
+  if (message.type === "canvas-message") {
+    const { recipientId, subject, body } = message as { recipientId: string; subject: string; body: string }
+    return canvasApiFetch("/api/v1/conversations", {
+      method: "POST",
+      body: { recipients: [recipientId], subject, body, group_conversation: false },
+    })
   }
 
   if (message.type === "canvas-session-check") {

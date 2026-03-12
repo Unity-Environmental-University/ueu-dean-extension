@@ -33,3 +33,22 @@ export async function setPermissions(perms: Partial<Permissions>): Promise<Permi
 export async function revokeAll(): Promise<void> {
   await browser.storage.local.remove(STORAGE_KEY)
 }
+
+const SETTINGS_KEY = "ueu_settings"
+
+export interface Settings {
+  /** Canvas user ID to receive diagnostic messages */
+  supportCanvasId: string
+}
+
+export async function getSettings(): Promise<Settings> {
+  const result = await browser.storage.local.get(SETTINGS_KEY)
+  return { supportCanvasId: "", ...result[SETTINGS_KEY] }
+}
+
+export async function saveSettings(settings: Partial<Settings>): Promise<Settings> {
+  const current = await getSettings()
+  const updated = { ...current, ...settings }
+  await browser.storage.local.set({ [SETTINGS_KEY]: updated })
+  return updated
+}

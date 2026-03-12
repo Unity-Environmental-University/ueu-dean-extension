@@ -5,16 +5,20 @@
  */
 
 import { createSignal, createResource, Show } from "solid-js"
+import browser from "webextension-polyfill"
 import { CanvasLink } from "./CanvasLink"
-import { getPermissions, setPermissions, revokeAll } from "../content/permissions"
-import { refresh } from "../content/features"
+import { getPermissions, setPermissions, revokeAll, getSettings, saveSettings } from "../content/permissions"
+import { refresh, state } from "../content/features"
 
 export function Overlay() {
   const [open, setOpen] = createSignal(false)
   const [copied, setCopied] = createSignal(false)
+  const [sendStatus, setSendStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
 
-  // Load permissions reactively
+  // Load permissions and settings reactively
   const [perms, { refetch: refetchPerms }] = createResource(getPermissions)
+  const [supportId, setSupportId] = createSignal("")
+  getSettings().then(s => setSupportId(s.supportCanvasId))
 
   const hasConsent = () => perms()?.sfApi ?? false
 
@@ -55,7 +59,7 @@ export function Overlay() {
     return `[${hash(text.trim())}]`
   }
 
-  async function handleCopyState() {
+  function buildDiagnosticText(): string {
     const s = state
     const lines: string[] = []
     lines.push(`[ueu-dean-tools diagnostic]`)
@@ -113,9 +117,33 @@ export function Overlay() {
       s.diagnostics.forEach(d => lines.push(`  ${d.type}: ${d.detail}`))
     }
 
-    await navigator.clipboard.writeText(lines.join("\n"))
+    return lines.join("\n")
+  }
+
+  async function handleCopyState() {
+    await navigator.clipboard.writeText(buildDiagnosticText())
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleSendDiagnostic() {
+    const recipientId = supportId().trim()
+    if (!recipientId) return
+    setSendStatus("sending")
+    try {
+      const caseNum = state.caseData?.caseNumber ?? state.page?.recordId ?? "unknown"
+      await browser.runtime.sendMessage({
+        type: "canvas-message",
+        recipientId,
+        subject: `Dean Tools diagnostic — case ${caseNum}`,
+        body: buildDiagnosticText(),
+      })
+      setSendStatus("sent")
+      setTimeout(() => setSendStatus("idle"), 3000)
+    } catch {
+      setSendStatus("error")
+      setTimeout(() => setSendStatus("idle"), 3000)
+    }
   }
 
   async function handleCapture() {
@@ -222,6 +250,25 @@ export function Overlay() {
                 {copied() ? "Copied!" : "Copy state"}
               </button>
               <small>Copies extension state — paste to Claude to debug field mapping</small>
+
+              <div class="ueu-dev-support">
+                <label class="ueu-dev-label">Support Canvas ID</label>
+                <input
+                  class="ueu-dev-input"
+                  type="text"
+                  placeholder="Canvas user ID"
+                  value={supportId()}
+                  onInput={e => setSupportId(e.currentTarget.value)}
+                  onBlur={() => saveSettings({ supportCanvasId: supportId().trim() })}
+                />
+                <button
+                  onClick={handleSendDiagnostic}
+                  disabled={!supportId().trim() || sendStatus() === "sending"}
+                  class={sendStatus() === "sent" ? "ueu-btn-copied" : sendStatus() === "error" ? "ueu-btn-revoke" : ""}
+                >
+                  {sendStatus() === "sending" ? "Sending…" : sendStatus() === "sent" ? "Sent!" : sendStatus() === "error" ? "Failed" : "Send diagnostic"}
+                </button>
+              </div>
 
               <button onClick={async () => {
                 const step = window.innerHeight
