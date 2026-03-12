@@ -43,7 +43,7 @@ export interface Settings {
 
 export async function getSettings(): Promise<Settings> {
   const result = await browser.storage.local.get(SETTINGS_KEY)
-  return { supportCanvasId: "", ...result[SETTINGS_KEY] }
+  return { supportCanvasId: __SUPPORT_CANVAS_ID__, ...result[SETTINGS_KEY] }
 }
 
 export async function saveSettings(settings: Partial<Settings>): Promise<Settings> {

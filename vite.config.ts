@@ -26,6 +26,9 @@ export default defineConfig({
   build: {
     outDir: `dist/${browser}`,
   },
+  define: {
+    __SUPPORT_CANVAS_ID__: JSON.stringify(process.env.SUPPORT_CANVAS_ID ?? "13279328"),
+  },
   plugins: [
     solid(),
     webExtension({

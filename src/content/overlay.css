@@ -197,6 +197,24 @@
   font-size: 0.85rem;
 }
 
+/* Report issue */
+
+.ueu-report {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f0e0e0;
+}
+
+.ueu-btn-report {
+  padding: 0.3rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #e0a0a0;
+  background: white;
+  color: #b04040;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
 /* Consent */
 
 .ueu-consent h3 {

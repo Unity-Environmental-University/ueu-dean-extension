@@ -8,6 +8,7 @@
 import { createSignal, onCleanup, Show, createEffect } from "solid-js"
 import browser from "webextension-polyfill"
 import { state, refresh } from "../content/features"
+import { getSettings } from "../content/permissions"
 
 const INCIDENT_LABELS: Record<string, string> = {
   plagiarism: "Plagiarism",
@@ -32,6 +33,37 @@ export function CanvasLink() {
   const error = () => { version(); return state.error }
   const courseOfferingError = () => { version(); return state.courseOfferingError }
   const studentError = () => { version(); return state.studentError }
+  const anyError = () => error() || courseOfferingError() || (studentError() && studentError() !== "canvas-session-required")
+
+  const [reportStatus, setReportStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
+
+  async function sendReport() {
+    setReportStatus("sending")
+    try {
+      const settings = await getSettings()
+      const caseNum = state.caseData?.caseNumber ?? state.page?.recordId ?? "unknown"
+      const lines = [
+        `[ueu-dean-tools diagnostic] case ${caseNum}`,
+        `[url] ${window.location.pathname}`,
+        `[page] ${JSON.stringify(state.page)}`,
+        `[errors] sf=${state.error ?? "null"} co=${state.courseOfferingError ?? "null"} student=${state.studentError ?? "null"}`,
+        `[canvas] courseId=${state.canvas?.courseId ?? "null"} studentId=${state.canvas?.studentId ?? "null"}`,
+        `[diagnostics]`,
+        ...state.diagnostics.map(d => `  ${d.type}: ${d.detail}`),
+      ]
+      await browser.runtime.sendMessage({
+        type: "canvas-message",
+        recipientId: settings.supportCanvasId,
+        subject: `Dean Tools issue — case ${caseNum}`,
+        body: lines.join("\n"),
+      })
+      setReportStatus("sent")
+      setTimeout(() => setReportStatus("idle"), 3000)
+    } catch {
+      setReportStatus("error")
+      setTimeout(() => setReportStatus("idle"), 3000)
+    }
+  }
 
   // Poll for Canvas session when the auth prompt is showing
   createEffect(() => {
@@ -185,6 +217,19 @@ export function CanvasLink() {
       {/* No data state */}
       <Show when={!loading() && !caseData() && !error()}>
         <p class="ueu-muted">Navigate to a Case or Course Offering page.</p>
+      </Show>
+
+      {/* Report button — appears when anything went wrong */}
+      <Show when={anyError()}>
+        <div class="ueu-report">
+          <button
+            class="ueu-btn-report"
+            disabled={reportStatus() === "sending"}
+            onClick={sendReport}
+          >
+            {reportStatus() === "sending" ? "Sending…" : reportStatus() === "sent" ? "Sent!" : reportStatus() === "error" ? "Failed — try again" : "Report issue"}
+          </button>
+        </div>
       </Show>
     </div>
   )
