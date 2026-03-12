@@ -5,7 +5,8 @@
  * All data comes from SF REST API — no DOM scraping.
  */
 
-import { createSignal, onCleanup, Show } from "solid-js"
+import { createSignal, onCleanup, Show, createEffect } from "solid-js"
+import browser from "webextension-polyfill"
 import { state, refresh } from "../content/features"
 
 const INCIDENT_LABELS: Record<string, string> = {
@@ -31,6 +32,19 @@ export function CanvasLink() {
   const error = () => { version(); return state.error }
   const courseOfferingError = () => { version(); return state.courseOfferingError }
   const studentError = () => { version(); return state.studentError }
+
+  // Poll for Canvas session when the auth prompt is showing
+  createEffect(() => {
+    if (studentError() !== "canvas-session-required") return
+    const interval = setInterval(async () => {
+      const result = await browser.runtime.sendMessage({ type: "canvas-session-check" }) as { hasSession: boolean }
+      if (result?.hasSession) {
+        clearInterval(interval)
+        refresh()
+      }
+    }, 1500)
+    onCleanup(() => clearInterval(interval))
+  })
 
   return (
     <div>
@@ -139,11 +153,10 @@ export function CanvasLink() {
               <div class="ueu-canvas-session-prompt">
                 <p>Student lookup requires an active Canvas session.</p>
                 <p>
-                  Open Canvas in another tab, log in, then{" "}
-                  <a href={c().url} target="_blank" rel="noopener noreferrer"
-                     onClick={() => setTimeout(refresh, 1500)}>
-                    click here to retry
-                  </a>.
+                  <a href={c().url} target="_blank" rel="noopener noreferrer">
+                    Open Canvas
+                  </a>
+                  {" "}in another tab and log in — this will update automatically.
                 </p>
               </div>
             </Show>

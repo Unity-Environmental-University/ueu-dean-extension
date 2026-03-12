@@ -92,5 +92,10 @@ browser.runtime.onMessage.addListener((message, _sender) => {
     return canvasApiFetch(path)
   }
 
+  if (message.type === "canvas-session-check") {
+    return browser.cookies.get({ url: `https://${CANVAS_HOST}`, name: "_canvas_session" })
+      .then(cookie => ({ hasSession: !!cookie?.value }))
+  }
+
   return Promise.resolve({ ok: true })
 })
