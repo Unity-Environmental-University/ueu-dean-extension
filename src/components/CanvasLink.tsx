@@ -6,7 +6,7 @@
  */
 
 import { createSignal, onCleanup, Show } from "solid-js"
-import { state } from "../content/features"
+import { state, refresh } from "../content/features"
 
 const INCIDENT_LABELS: Record<string, string> = {
   plagiarism: "Plagiarism",
@@ -135,7 +135,19 @@ export function CanvasLink() {
             <Show when={loadingStudent()}>
               <p class="ueu-loading" style={{"margin-top": "0.5rem"}}>Looking up student&hellip;</p>
             </Show>
-            <Show when={studentError()}>
+            <Show when={studentError() === "canvas-session-required"}>
+              <div class="ueu-canvas-session-prompt">
+                <p>Student lookup requires an active Canvas session.</p>
+                <p>
+                  Open Canvas in another tab, log in, then{" "}
+                  <a href={c().url} target="_blank" rel="noopener noreferrer"
+                     onClick={() => setTimeout(refresh, 1500)}>
+                    click here to retry
+                  </a>.
+                </p>
+              </div>
+            </Show>
+            <Show when={studentError() && studentError() !== "canvas-session-required"}>
               <p class="ueu-warn">{studentError()}</p>
             </Show>
             <Show when={c().studentId}>

@@ -175,6 +175,12 @@ async function resolveStudentFromEnrollment(enrollmentId: string) {
     state.loadingStudent = false
     state.notify()
   } catch (e) {
+    if (isAuthError(e)) {
+      state.loadingStudent = false
+      state.studentError = "canvas-session-required"
+      state.notify()
+      return
+    }
     console.warn("[UEU] Canvas enrollment lookup failed, falling back to email search:", e)
     const email = state.caseData?.contactEmail
     if (email) {
@@ -225,6 +231,10 @@ async function resolveStudentFromContact(contactId: string) {
   }
 }
 
+function isAuthError(e: unknown): boolean {
+  return e instanceof Error && e.message.includes(" 401:")
+}
+
 /** Search Canvas globally by email — not course-scoped */
 async function lookupCanvasStudentByEmail(email: string) {
   try {
@@ -239,7 +249,13 @@ async function lookupCanvasStudentByEmail(email: string) {
       state.notify()
       return
     }
-  } catch {
+  } catch (e) {
+    if (isAuthError(e)) {
+      state.loadingStudent = false
+      state.studentError = "canvas-session-required"
+      state.notify()
+      return
+    }
     // Global search may not be permitted — fall through to course-scoped
   }
 
@@ -256,8 +272,8 @@ async function lookupCanvasStudentByEmail(email: string) {
       } else {
         state.studentError = "Student not found in Canvas"
       }
-    } catch {
-      state.studentError = "Could not look up student in Canvas"
+    } catch (e) {
+      state.studentError = isAuthError(e) ? "canvas-session-required" : "Could not look up student in Canvas"
     }
   }
 

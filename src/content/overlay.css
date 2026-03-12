@@ -172,6 +172,25 @@
   font-size: 0.95rem;
 }
 
+.ueu-canvas-session-prompt {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 4px;
+  background: #fef9ec;
+  border: 1px solid #f0d080;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #555;
+}
+
+.ueu-canvas-session-prompt p { margin: 0; }
+.ueu-canvas-session-prompt p + p { margin-top: 0.25rem; }
+
+.ueu-canvas-session-prompt a {
+  color: #2d6a4f;
+  font-weight: 600;
+}
+
 .ueu-muted {
   margin: 0;
   color: #999;
