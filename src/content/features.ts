@@ -81,6 +81,9 @@ export const state = {
   courseOfferingError: null as string | null,
   studentError: null as string | null,
 
+  /** Diagnostic log — field misses and resolution path for this page load */
+  diagnostics: [] as Array<{ type: string; detail: string }>,
+
   notify() {
     this.listeners.forEach(fn => fn())
   },
@@ -137,19 +140,28 @@ function pick(record: Record<string, unknown>, ...keys: string[]): string | null
     const v = record[k]
     if (v != null && v !== "") return String(v)
   }
+  // Log miss so diagnostics can show which variants were tried
+  state.diagnostics.push({ type: "pick-miss", detail: `tried: ${keys.join(", ")}` })
   return null
+}
+
+function diag(type: string, detail: string) {
+  state.diagnostics.push({ type, detail })
 }
 
 /** Follow Course Offering Participant → return coId and student lookup hints (no side effects) */
 async function resolveCopToCoId(copId: string): Promise<{ coId: string | null; enrollmentId: string | null; contactId: string | null }> {
   try {
     const cop = await getRecord<Record<string, unknown>>("CourseOfferingParticipant", copId)
-    return {
+    const result = {
       coId: pick(cop, "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c"),
       enrollmentId: pick(cop, "Canvas_Enrollment_ID__c", "CanvasEnrollmentId__c"),
       contactId: pick(cop, "hed__Contact__c", "ContactId", "Contact__c"),
     }
-  } catch {
+    diag("cop-resolved", `coId=${result.coId ?? "null"} enrollmentId=${result.enrollmentId ?? "null"} contactId=${result.contactId ?? "null"}`)
+    return result
+  } catch (e) {
+    diag("cop-error", String(e))
     return { coId: null, enrollmentId: null, contactId: null }
   }
 }
@@ -296,11 +308,13 @@ async function resolveCanvasFromCo(coId: string, onName: (name: string) => void)
     state.loadingCourseOffering = false
 
     if (!canvasId) {
+      diag("canvas-id-missing", `CourseOffering ${coId} has no Canvas Course ID`)
       state.courseOfferingError = "No Canvas Course ID on this Course Offering"
       state.notify()
       return null
     }
 
+    diag("canvas-id-resolved", canvasId)
     state.canvas = { courseId: canvasId, url: `https://unity.instructure.com/courses/${canvasId}`, studentId: null, studentName: null }
     state.notify()
     return canvasId
@@ -320,19 +334,23 @@ async function resolveStudent(opts: { enrollmentId?: string | null; contactId?: 
   state.notify()
 
   if (opts.enrollmentId) {
+    diag("student-lookup-path", `enrollment:${opts.enrollmentId}`)
     await resolveStudentFromEnrollment(opts.enrollmentId)
     return
   }
   if (opts.contactId) {
+    diag("student-lookup-path", `contact:${opts.contactId}`)
     await resolveStudentFromContact(opts.contactId)
     return
   }
   if (opts.email) {
+    diag("student-lookup-path", `email:${opts.email}`)
     await lookupCanvasStudentByEmail(opts.email)
     return
   }
   state.loadingStudent = false
   state.studentError = "No student identifier available"
+  diag("student-lookup-path", "no identifier available")
   state.notify()
 }
 
@@ -347,6 +365,7 @@ async function loadCase(recordId: string, token: number) {
   state.dishonesty = null
   state.gradeAppeal = null
   state.canvas = null
+  state.diagnostics = []
   state.notify()
 
   try {

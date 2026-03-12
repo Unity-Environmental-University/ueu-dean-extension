@@ -55,6 +55,69 @@ export function Overlay() {
     return `[${hash(text.trim())}]`
   }
 
+  async function handleCopyState() {
+    const s = state
+    const lines: string[] = []
+    lines.push(`[ueu-dean-tools diagnostic]`)
+    lines.push(`[url] ${window.location.pathname}`)
+    lines.push(`[page] ${JSON.stringify(s.page)}`)
+    lines.push(``)
+
+    lines.push(`[loading]`)
+    lines.push(`  loading=${s.loading} loadingCO=${s.loadingCourseOffering} loadingStudent=${s.loadingStudent}`)
+    lines.push(`  error=${s.error ?? "null"}`)
+    lines.push(`  courseOfferingError=${s.courseOfferingError ?? "null"}`)
+    lines.push(`  studentError=${s.studentError ?? "null"}`)
+    lines.push(``)
+
+    if (s.caseData) {
+      lines.push(`[caseData]`)
+      lines.push(`  caseNumber=${s.caseData.caseNumber}`)
+      lines.push(`  status=${s.caseData.status}`)
+      lines.push(`  type=${s.caseData.type} subType=${s.caseData.subType}`)
+      lines.push(`  contactName=[${hash(s.caseData.contactName)}] contactEmail=[${hash(s.caseData.contactEmail)}]`)
+      lines.push(`  accountName=[${hash(s.caseData.accountName)}]`)
+      lines.push(``)
+    }
+
+    if (s.dishonesty) {
+      lines.push(`[dishonesty]`)
+      lines.push(`  incidentType=${s.dishonesty.incidentType}`)
+      lines.push(`  courseOfferingId=${s.dishonesty.courseOfferingId ?? "null"}`)
+      lines.push(`  courseOfferingName=${s.dishonesty.courseOfferingName ?? "null"}`)
+      lines.push(`  assignmentName=${s.dishonesty.assignmentName ?? "null"}`)
+      lines.push(`  severity=${s.dishonesty.severity ?? "null"}`)
+      lines.push(``)
+    }
+
+    if (s.gradeAppeal) {
+      lines.push(`[gradeAppeal]`)
+      lines.push(`  courseOfferingId=${s.gradeAppeal.courseOfferingId ?? "null"}`)
+      lines.push(`  courseOfferingName=${s.gradeAppeal.courseOfferingName ?? "null"}`)
+      lines.push(`  copId=${s.gradeAppeal.courseOfferingParticipantId ?? "null"}`)
+      lines.push(`  currentGrade=${s.gradeAppeal.currentGrade ?? "null"} changedGrade=${s.gradeAppeal.changedGrade ?? "null"}`)
+      lines.push(`  decisionStatus=${s.gradeAppeal.decisionStatus ?? "null"}`)
+      lines.push(``)
+    }
+
+    if (s.canvas) {
+      lines.push(`[canvas]`)
+      lines.push(`  courseId=${s.canvas.courseId}`)
+      lines.push(`  studentId=${s.canvas.studentId ?? "null"}`)
+      lines.push(`  studentName=${s.canvas.studentName ? `[${hash(s.canvas.studentName)}]` : "null"}`)
+      lines.push(``)
+    }
+
+    if (s.diagnostics.length > 0) {
+      lines.push(`[diagnostics]`)
+      s.diagnostics.forEach(d => lines.push(`  ${d.type}: ${d.detail}`))
+    }
+
+    await navigator.clipboard.writeText(lines.join("\n"))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   async function handleCapture() {
     const lines: string[] = []
     lines.push(`[url] ${window.location.pathname}`)
@@ -155,6 +218,11 @@ export function Overlay() {
 
             <details class="ueu-dev">
               <summary>Dev</summary>
+              <button onClick={handleCopyState} class={copied() ? "ueu-btn-copied" : ""}>
+                {copied() ? "Copied!" : "Copy state"}
+              </button>
+              <small>Copies extension state — paste to Claude to debug field mapping</small>
+
               <button onClick={async () => {
                 const step = window.innerHeight
                 const max = document.body.scrollHeight
