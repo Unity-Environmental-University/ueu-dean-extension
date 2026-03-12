@@ -89,30 +89,6 @@ export const state = {
   },
 }
 
-/** SF API field names — we'll discover the exact names from the API response */
-// Case fields we care about
-const CASE_FIELDS = {
-  caseNumber: "CaseNumber",
-  status: "Status",
-  contactName: "Contact_Name__c",    // might be ContactId lookup
-  accountName: "Account_Name__c",    // might be AccountId lookup
-  type: "Type",
-  subType: "SubType__c",
-  subject: "Subject",
-  // Dishonesty fields (on the Case record)
-  courseOffering: "Course_Offering__c",       // lookup ID
-  incidentType: "Incident_Type__c",
-  assignmentName: "Assignment__c",
-  severity: "Severity__c",
-  instructor: "Instructor__c",
-  instructorEmail: "Instructor_Email__c",
-}
-
-// Course Offering fields
-const CO_FIELDS = {
-  canvasCourseId: "Canvas_Course_ID__c",
-  name: "Name",
-}
 
 function classifyIncident(raw: string | null): string {
   if (!raw) return "other"
@@ -193,7 +169,7 @@ async function resolveCopToCoId(copId: string): Promise<{ coId: string | null; e
 }
 
 /** Use Canvas Enrollment ID to get the Canvas user_id — courseId must already be set in state */
-async function resolveStudentFromEnrollment(enrollmentId: string) {
+async function resolveStudentFromEnrollment(enrollmentId: string, fallbackEmail: string | null) {
   const courseId = state.canvas?.courseId
   if (!courseId) {
     state.loadingStudent = false
@@ -220,9 +196,8 @@ async function resolveStudentFromEnrollment(enrollmentId: string) {
       return
     }
     console.warn("[UEU] Canvas enrollment lookup failed, falling back to email search:", e)
-    const email = state.caseData?.contactEmail
-    if (email) {
-      await lookupCanvasStudentByEmail(email)
+    if (fallbackEmail) {
+      await lookupCanvasStudentByEmail(fallbackEmail)
     } else {
       state.loadingStudent = false
       state.studentError = "Could not resolve student from Canvas enrollment"
@@ -232,7 +207,7 @@ async function resolveStudentFromEnrollment(enrollmentId: string) {
 }
 
 /** Fetch the SF Contact record and use it to find the Canvas student */
-async function resolveStudentFromContact(contactId: string) {
+async function resolveStudentFromContact(contactId: string, fallbackEmail: string | null) {
   try {
     const contact = await getRecord<Record<string, unknown>>("Contact", contactId)
 
@@ -247,7 +222,7 @@ async function resolveStudentFromContact(contactId: string) {
     }
 
     // Fall back to global Canvas search by email
-    const email = pick(contact, "Email") ?? state.caseData?.contactEmail
+    const email = pick(contact, "Email") ?? fallbackEmail
     if (email) {
       await lookupCanvasStudentByEmail(email)
     } else {
@@ -257,10 +232,8 @@ async function resolveStudentFromContact(contactId: string) {
     }
   } catch (e) {
     console.warn("[UEU] Failed to fetch Contact:", e)
-    // Fall back to whatever email we have on the case
-    const email = state.caseData?.contactEmail
-    if (email) {
-      await lookupCanvasStudentByEmail(email)
+    if (fallbackEmail) {
+      await lookupCanvasStudentByEmail(fallbackEmail)
     } else {
       state.loadingStudent = false
       state.studentError = "Could not look up student"
@@ -319,6 +292,24 @@ async function lookupCanvasStudentByEmail(email: string) {
   state.notify()
 }
 
+/**
+ * Resolve Canvas course from a CO, then resolve the student.
+ * Centralises the identical dishonesty / grade-appeal sequence.
+ */
+async function resolveCanvasAndStudent(opts: {
+  coId: string
+  enrollmentId: string | null
+  contactId: string | null
+  email: string | null
+  onName: (name: string) => void
+  token: number
+}) {
+  const canvasId = await resolveCanvasFromCo(opts.coId, opts.onName)
+  if (canvasId && !stale(opts.token)) {
+    await resolveStudent({ enrollmentId: opts.enrollmentId, contactId: opts.contactId, email: opts.email })
+  }
+}
+
 /** Fetch Course Offering and set Canvas course state. Returns canvasId if resolved, null otherwise. */
 async function resolveCanvasFromCo(coId: string, onName: (name: string) => void): Promise<string | null> {
   state.loadingCourseOffering = true
@@ -361,12 +352,12 @@ async function resolveStudent(opts: { enrollmentId?: string | null; contactId?: 
 
   if (opts.enrollmentId) {
     diag("student-lookup-path", `enrollment:${opts.enrollmentId}`)
-    await resolveStudentFromEnrollment(opts.enrollmentId)
+    await resolveStudentFromEnrollment(opts.enrollmentId, opts.email ?? null)
     return
   }
   if (opts.contactId) {
     diag("student-lookup-path", `contact:${opts.contactId}`)
-    await resolveStudentFromContact(opts.contactId)
+    await resolveStudentFromContact(opts.contactId, opts.email ?? null)
     return
   }
   if (opts.email) {
@@ -435,12 +426,14 @@ async function loadCase(recordId: string, token: number) {
       }
 
       if (courseOfferingId) {
-        const canvasId = await resolveCanvasFromCo(courseOfferingId, (name) => {
-          if (!stale(token) && state.dishonesty) state.dishonesty.courseOfferingName = name
+        await resolveCanvasAndStudent({
+          coId: courseOfferingId,
+          enrollmentId: null,
+          contactId: null,
+          email: state.caseData?.contactEmail ?? null,
+          onName: (name) => { if (!stale(token) && state.dishonesty) state.dishonesty.courseOfferingName = name },
+          token,
         })
-        if (canvasId && !stale(token)) {
-          await resolveStudent({ email: state.caseData?.contactEmail })
-        }
       }
     }
 
@@ -479,12 +472,14 @@ async function loadCase(recordId: string, token: number) {
       }
 
       if (coId) {
-        const canvasId = await resolveCanvasFromCo(coId, (name) => {
-          if (!stale(token) && state.gradeAppeal) state.gradeAppeal.courseOfferingName = name
+        await resolveCanvasAndStudent({
+          coId,
+          enrollmentId,
+          contactId,
+          email: state.caseData?.contactEmail ?? null,
+          onName: (name) => { if (!stale(token) && state.gradeAppeal) state.gradeAppeal.courseOfferingName = name },
+          token,
         })
-        if (canvasId && !stale(token)) {
-          await resolveStudent({ enrollmentId, contactId, email: state.caseData?.contactEmail })
-        }
       }
     }
 
