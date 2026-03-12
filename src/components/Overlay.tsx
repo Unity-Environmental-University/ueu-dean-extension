@@ -333,6 +333,16 @@ export function Overlay() {
               <Show when={feedbackOpen()} fallback={
                 <div class="ueu-footer-row">
                   <button onClick={() => setOpen(false)}>Close</button>
+                  <a
+                    class="ueu-btn-feedback"
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      chrome.tabs.create({ url: browser.runtime.getURL("docs/index.html") })
+                    }}
+                  >
+                    Docs →
+                  </a>
                   <button class="ueu-btn-feedback" onClick={() => setFeedbackOpen(true)}>
                     Feedback / request
                   </button>

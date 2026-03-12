@@ -47,6 +47,10 @@
     {
       "resources": ["src/content/page-bridge.js"],
       "matches": ["https://*.salesforce.com/*", "https://*.force.com/*"]
+    },
+    {
+      "resources": ["docs/*"],
+      "matches": ["<all_urls>"]
     }
   ],
 

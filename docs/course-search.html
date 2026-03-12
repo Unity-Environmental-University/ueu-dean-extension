@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Course Search — Dean Tools</title>
+<style>
+
+:root {
+  --cream: #FAF7F2;
+  --ink: #251A10;
+  --ink-mid: #6B5344;
+  --ink-light: #A08070;
+  --coral: #D94F2A;
+  --brass: #B87D2A;
+  --teal: #1B7A68;
+  --grid: #EDE5D8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.75;
+  overflow-x: hidden;
+}
+
+/* ── Nav ───────────────────────────────────────────── */
+
+.top-nav {
+  padding: 20px 24px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.back-link {
+  font-size: 0.85em;
+  color: var(--ink-mid);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s ease;
+}
+
+.back-link:hover { color: var(--teal); }
+
+/* ── Page header ───────────────────────────────────── */
+
+.page-header {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 24px 48px;
+}
+
+.eyebrow {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--brass);
+  margin-bottom: 12px;
+}
+
+.page-header h1 {
+  font-size: clamp(1.8em, 5vw, 3em);
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  margin-bottom: 16px;
+}
+
+.setup-line {
+  font-size: 1.05em;
+  color: var(--ink-mid);
+}
+
+/* ── Demo wrapper ──────────────────────────────────── */
+
+.demo-wrap {
+  padding: 0 24px 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+/* ── Browser chrome ────────────────────────────────── */
+
+.browser-shell {
+  width: 100%;
+  max-width: 700px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1), 0 12px 48px rgba(0,0,0,0.18);
+  background: #f0f0f0;
+}
+
+.browser-titlebar {
+  background: #e8e8e8;
+  border-bottom: 1px solid #d0d0d0;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.browser-dots {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.browser-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+}
+
+.browser-dot.red    { background: #ff5f57; }
+.browser-dot.yellow { background: #ffbd2e; }
+.browser-dot.green  { background: #28c840; }
+
+.browser-url {
+  flex: 1;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: #555;
+  font-family: system-ui, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browser-ext-area {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.browser-ext-icon {
+  width: 28px; height: 28px;
+  border-radius: 4px;
+  background: #2d6a4f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: system-ui, sans-serif;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.browser-ext-icon:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.browser-ext-icon:active { transform: scale(0.95); }
+
+.browser-ext-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: #333;
+  color: white;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.browser-ext-icon:hover .browser-ext-tooltip { opacity: 1; }
+
+.browser-page {
+  background: white;
+  min-height: 200px;
+  padding: 28px 32px;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  color: #333;
+}
+
+.browser-page-placeholder {
+  color: #aaa;
+  font-size: 13px;
+}
+
+/* ── Popup overlay ─────────────────────────────────── */
+
+.popup-anchor {
+  position: relative;
+}
+
+.popup-overlay {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  transform-origin: top right;
+  transition:
+    opacity 0.2s ease,
+    transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.popup-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.88) translateY(-6px);
+}
+
+.popup-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1) translateY(0);
+}
+
+/* ── Popup itself — exact match to Popup.tsx ───────── */
+
+.popup-root {
+  padding: 0.75rem;
+  width: 400px;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.22), 0 1px 4px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.popup-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.popup-input {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.popup-input:focus { border-color: #999; }
+
+.popup-btn {
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  background: white;
+  transition: background 0.12s ease;
+}
+
+.popup-btn:hover { background: #f5f5f5; }
+.popup-btn:active { background: #ebebeb; }
+
+.popup-status {
+  margin: 0.5rem 0 0;
+  color: #888;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+}
+
+.popup-status.error { color: #c33; }
+
+.popup-results {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.popup-result-item {
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.1s ease;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+}
+
+.popup-result-item:hover { background: #f0f0f0; }
+
+.popup-result-item strong { color: #111; }
+
+.popup-result-item span {
+  color: #666;
+  margin-left: 0.5rem;
+}
+
+.popup-result-item.opening {
+  background: #f0f7f4;
+  color: #2d6a4f;
+}
+
+/* ── Step nav ──────────────────────────────────────── */
+
+.step-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--grid);
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.step-dot:hover { transform: scale(1.3); }
+.step-dot.active { background: var(--teal); }
+
+.step-hint {
+  font-size: 0.82em;
+  color: var(--ink-light);
+  font-style: italic;
+  margin-left: 10px;
+}
+
+/* ── After-demo note ───────────────────────────────── */
+
+.after-demo {
+  max-width: 700px;
+  width: 100%;
+  padding: 0 24px;
+  margin: 0 auto;
+  font-size: 0.95em;
+  color: var(--ink-mid);
+  line-height: 1.75;
+}
+
+/* ── Footer ────────────────────────────────────────── */
+
+footer {
+  border-top: 1px solid var(--grid);
+  margin-top: 72px;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.footer-inner {
+  max-width: 960px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-credit {
+  font-size: 0.8em;
+  color: var(--ink-light);
+}
+
+.footer-link {
+  font-size: 0.8em;
+  color: var(--ink-light);
+  text-decoration: none;
+  border-bottom: 1px solid var(--grid);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--teal);
+  border-color: var(--teal);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in { animation: fadeUp 0.3s ease both; }
+
+@keyframes ellipsis {
+  0%   { content: ''; }
+  33%  { content: '.'; }
+  66%  { content: '..'; }
+  100% { content: '...'; }
+}
+
+.loading-dots::after {
+  content: '';
+  animation: ellipsis 1.2s steps(1, end) infinite;
+}
+
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a class="back-link" href="index.html">← Dean Tools</a>
+</nav>
+
+<div class="page-header">
+  <div class="eyebrow">Course Search</div>
+  <h1>Find any course.<br>Without opening Canvas.</h1>
+  <p class="setup-line">Click the extension icon. Type a course code. You're there.</p>
+</div>
+
+<div class="demo-wrap">
+
+  <div class="browser-shell">
+    <div class="browser-titlebar">
+      <div class="browser-dots">
+        <div class="browser-dot red"></div>
+        <div class="browser-dot yellow"></div>
+        <div class="browser-dot green"></div>
+      </div>
+      <div class="browser-url">unity.instructure.com</div>
+      <div class="browser-ext-area">
+        <div class="popup-anchor">
+          <div class="browser-ext-icon" id="extIcon" onclick="handleExtClick()">
+            U
+            <div class="browser-ext-tooltip">UEU Dean Tools</div>
+          </div>
+          <div class="popup-overlay hidden" id="popupOverlay">
+            <div class="popup-root">
+              <form class="popup-form" onsubmit="handleSearch(event)">
+                <input
+                  class="popup-input"
+                  type="text"
+                  id="searchInput"
+                  placeholder="Course code (e.g. ENVI1001)"
+                  autocomplete="off"
+                  oninput="handleInput()"
+                />
+                <button class="popup-btn" type="submit">Go</button>
+              </form>
+              <div id="popupBody"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="browser-page">
+      <div class="browser-page-placeholder" id="pagePlaceholder">Canvas — Dashboard</div>
+    </div>
+  </div>
+
+  <div class="step-nav">
+    <div class="step-dot active" id="dot0" onclick="jumpTo(0)" title="Start"></div>
+    <div class="step-dot" id="dot1" onclick="jumpTo(1)" title="Popup open"></div>
+    <div class="step-dot" id="dot2" onclick="jumpTo(2)" title="Searching"></div>
+    <div class="step-dot" id="dot3" onclick="jumpTo(3)" title="Results"></div>
+    <span class="step-hint" id="stepHint">Click the U icon to open the search.</span>
+  </div>
+
+</div>
+
+<div class="after-demo">
+  <p>The search runs against your active Canvas session — no extra login, no bookmarks, no hunting through navigation. Type the course code and go directly to the course page.</p>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <a class="footer-link" href="index.html">← Dean Tools</a>
+    <span class="footer-credit">Built by Unity Environmental University</span>
+    <a class="footer-link" href="changelog.md">Changelog</a>
+  </div>
+</footer>
+
+<script>
+const FAKE_RESULTS = [
+  { code: 'ENVI1001', name: 'Environmental Science' },
+  { code: 'ENVI2010', name: 'Ecology and Ecosystems' },
+  { code: 'ENVI3100', name: 'Climate Systems and Policy' },
+  { code: 'ENVI4150', name: 'Environmental Research Methods' },
+];
+
+const HINTS = [
+  'Click the U icon to open the search.',
+  'Type a course code — or try the pre-filled demo.',
+  'Searching Canvas…',
+  'Click a course to open it.',
+];
+
+let stage = 0;
+let searchTimer = null;
+let popupOpen = false;
+
+function setDots(n) {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('dot' + i).classList.toggle('active', i === n);
+  }
+}
+
+function setHint(t) {
+  document.getElementById('stepHint').textContent = t;
+}
+
+function showPopup() {
+  const overlay = document.getElementById('popupOverlay');
+  overlay.classList.remove('hidden');
+  overlay.classList.add('visible');
+  popupOpen = true;
+  setTimeout(() => {
+    const input = document.getElementById('searchInput');
+    if (input) input.focus();
+  }, 50);
+}
+
+function hidePopup() {
+  const overlay = document.getElementById('popupOverlay');
+  overlay.classList.add('hidden');
+  overlay.classList.remove('visible');
+  popupOpen = false;
+  clearTimeout(searchTimer);
+}
+
+function setBody(html) {
+  document.getElementById('popupBody').innerHTML = html;
+}
+
+function handleExtClick() {
+  if (!popupOpen) {
+    showPopup();
+    setDots(1);
+    setHint(HINTS[1]);
+    stage = 1;
+    // Pre-fill with ENV to invite interaction
+    const input = document.getElementById('searchInput');
+    if (input && input.value === '') {
+      input.value = 'ENVI';
+    }
+    setBody('');
+  } else {
+    hidePopup();
+    setDots(0);
+    setHint(HINTS[0]);
+    stage = 0;
+    setBody('');
+  }
+}
+
+function handleInput() {
+  // If user clears and then types, reset body
+  const val = document.getElementById('searchInput').value.trim();
+  if (!val) setBody('');
+}
+
+function handleSearch(e) {
+  if (e) e.preventDefault();
+  const val = document.getElementById('searchInput').value.trim();
+  if (!val) return;
+
+  clearTimeout(searchTimer);
+  setDots(2);
+  setHint(HINTS[2]);
+  stage = 2;
+
+  setBody('<p class="popup-status"><span class="loading-dots">Searching</span></p>');
+
+  searchTimer = setTimeout(() => {
+    const q = val.toLowerCase();
+    const matches = FAKE_RESULTS.filter(r =>
+      r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)
+    );
+
+    setDots(3);
+    setHint(HINTS[3]);
+    stage = 3;
+
+    if (matches.length === 0) {
+      setBody('<p class="popup-status">No courses found</p>');
+      return;
+    }
+
+    const items = matches.map((r, i) =>
+      `<li class="popup-result-item fade-in" style="animation-delay:${i * 0.05}s" onclick="openCourse(this, '${r.code}', '${r.name}')">
+        <strong>${r.code}</strong><span>${r.name}</span>
+       </li>`
+    ).join('');
+
+    setBody(`<ul class="popup-results">${items}</ul>`);
+  }, 950);
+}
+
+function openCourse(el, code, name) {
+  el.classList.add('opening');
+  el.innerHTML = `Opening ${code} in Canvas…`;
+  setTimeout(() => {
+    hidePopup();
+    setDots(0);
+    setHint(HINTS[0]);
+    stage = 0;
+    document.getElementById('searchInput').value = '';
+    setBody('');
+  }, 1400);
+}
+
+function jumpTo(n) {
+  clearTimeout(searchTimer);
+  setDots(n);
+  setHint(HINTS[n]);
+  stage = n;
+
+  if (n === 0) {
+    hidePopup();
+    document.getElementById('searchInput').value = '';
+    setBody('');
+    return;
+  }
+
+  if (n === 1) {
+    showPopup();
+    document.getElementById('searchInput').value = 'ENVI';
+    setBody('');
+    return;
+  }
+
+  if (n === 2) {
+    showPopup();
+    document.getElementById('searchInput').value = 'ENVI';
+    setBody('<p class="popup-status"><span class="loading-dots">Searching</span></p>');
+    return;
+  }
+
+  if (n === 3) {
+    showPopup();
+    document.getElementById('searchInput').value = 'ENVI';
+    const items = FAKE_RESULTS.map((r, i) =>
+      `<li class="popup-result-item fade-in" style="animation-delay:${i * 0.05}s" onclick="openCourse(this, '${r.code}', '${r.name}')">
+        <strong>${r.code}</strong><span>${r.name}</span>
+       </li>`
+    ).join('');
+    setBody(`<ul class="popup-results">${items}</ul>`);
+    return;
+  }
+}
+
+// Close popup when clicking outside
+document.addEventListener('click', function(e) {
+  if (!popupOpen) return;
+  const overlay = document.getElementById('popupOverlay');
+  const icon = document.getElementById('extIcon');
+  if (!overlay.contains(e.target) && !icon.contains(e.target)) {
+    hidePopup();
+    if (stage > 0) {
+      setDots(0);
+      setHint(HINTS[0]);
+      stage = 0;
+    }
+  }
+});
+</script>
+
+</body>
+</html>
