@@ -107,6 +107,19 @@
   white-space: pre;
 }
 
+.ueu-loading {
+  margin: 0 0 0.25rem;
+  color: #888;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.ueu-warn {
+  margin: 0 0 0.25rem;
+  color: #d97706;
+  font-size: 0.8rem;
+}
+
 .ueu-error {
   margin: 0 0 0.5rem;
   color: #dc2626;

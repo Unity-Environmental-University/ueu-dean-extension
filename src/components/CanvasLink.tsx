@@ -23,9 +23,14 @@ export function CanvasLink() {
 
   const caseData = () => { version(); return state.caseData }
   const dishonesty = () => { version(); return state.dishonesty }
+  const gradeAppeal = () => { version(); return state.gradeAppeal }
   const canvas = () => { version(); return state.canvas }
   const loading = () => { version(); return state.loading }
+  const loadingCO = () => { version(); return state.loadingCourseOffering }
+  const loadingStudent = () => { version(); return state.loadingStudent }
   const error = () => { version(); return state.error }
+  const courseOfferingError = () => { version(); return state.courseOfferingError }
+  const studentError = () => { version(); return state.studentError }
 
   return (
     <div>
@@ -82,7 +87,39 @@ export function CanvasLink() {
         )}
       </Show>
 
+      {/* Grade appeal */}
+      <Show when={gradeAppeal()}>
+        {g => (
+          <article>
+            <h3 class="ueu-label">Grade Appeal</h3>
+            <dl class="ueu-case-fields">
+              <Show when={g().courseOfferingName}>
+                <dt>Course</dt><dd>{g().courseOfferingName}</dd>
+              </Show>
+              <Show when={g().currentGrade}>
+                <dt>Current Grade</dt><dd>{g().currentGrade}</dd>
+              </Show>
+              <Show when={g().changedGrade}>
+                <dt>Changed To</dt><dd>{g().changedGrade}</dd>
+              </Show>
+              <Show when={g().decisionStatus}>
+                <dt>Decision</dt><dd>{g().decisionStatus}</dd>
+              </Show>
+              <Show when={g().instructor}>
+                <dt>Instructor</dt><dd>{g().instructor}</dd>
+              </Show>
+            </dl>
+          </article>
+        )}
+      </Show>
+
       {/* Canvas link */}
+      <Show when={loadingCO()}>
+        <p class="ueu-loading">Loading course&hellip;</p>
+      </Show>
+      <Show when={courseOfferingError()}>
+        <p class="ueu-warn">{courseOfferingError()}</p>
+      </Show>
       <Show when={canvas()}>
         {c => (
           <article>
@@ -95,6 +132,12 @@ export function CanvasLink() {
                 Gradebook &rarr;
               </a>
             </div>
+            <Show when={loadingStudent()}>
+              <p class="ueu-loading" style={{"margin-top": "0.5rem"}}>Looking up student&hellip;</p>
+            </Show>
+            <Show when={studentError()}>
+              <p class="ueu-warn">{studentError()}</p>
+            </Show>
             <Show when={c().studentId}>
               <h3 class="ueu-label" style={{"margin-top": "0.75rem"}}>Student in Canvas</h3>
               <p class="ueu-muted" style={{"margin-bottom": "0.4rem"}}>{c().studentName}</p>

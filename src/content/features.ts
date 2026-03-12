@@ -35,6 +35,7 @@ export const state = {
     contactName: string
     contactEmail: string
     accountName: string
+    accountId: string | null
     type: string
     subType: string
     subject: string
@@ -51,6 +52,19 @@ export const state = {
     instructorEmail: string | null
   } | null,
 
+  /** Grade appeal fields from the case */
+  gradeAppeal: null as {
+    courseOfferingId: string | null
+    courseOfferingName: string | null
+    courseOfferingParticipantId: string | null
+    currentGrade: string | null
+    changedGrade: string | null
+    appealReason: string | null
+    decisionStatus: string | null
+    instructor: string | null
+    instructorEmail: string | null
+  } | null,
+
   /** Canvas course info (resolved from Course Offering record) */
   canvas: null as {
     courseId: string
@@ -59,9 +73,13 @@ export const state = {
     studentName: string | null
   } | null,
 
-  /** Loading / error state */
+  /** Granular loading / error state */
   loading: false,
+  loadingCourseOffering: false,
+  loadingStudent: false,
   error: null as string | null,
+  courseOfferingError: null as string | null,
+  studentError: null as string | null,
 
   notify() {
     this.listeners.forEach(fn => fn())
@@ -111,11 +129,196 @@ function pick(record: Record<string, unknown>, ...keys: string[]): string | null
   return null
 }
 
+/** Follow Course Offering Participant → return coId and student lookup hints (no side effects) */
+async function resolveCopToCoId(copId: string): Promise<{ coId: string | null; enrollmentId: string | null; contactId: string | null }> {
+  try {
+    const cop = await getRecord<Record<string, unknown>>("CourseOfferingParticipant", copId)
+    return {
+      coId: pick(cop, "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c"),
+      enrollmentId: pick(cop, "Canvas_Enrollment_ID__c", "CanvasEnrollmentId__c"),
+      contactId: pick(cop, "hed__Contact__c", "ContactId", "Contact__c"),
+    }
+  } catch {
+    return { coId: null, enrollmentId: null, contactId: null }
+  }
+}
+
+/** Use Canvas Enrollment ID to get the Canvas user_id — courseId must already be set in state */
+async function resolveStudentFromEnrollment(enrollmentId: string) {
+  const courseId = state.canvas?.courseId
+  if (!courseId) {
+    state.loadingStudent = false
+    state.studentError = "Canvas course not resolved — cannot look up enrollment"
+    state.notify()
+    return
+  }
+
+  try {
+    const enrollment = await canvasFetch<{ id: number; user_id: number; user: { name: string } }>(
+      `/api/v1/courses/${courseId}/enrollments/${enrollmentId}`
+    )
+    if (state.canvas) {
+      state.canvas.studentId = String(enrollment.user_id)
+      state.canvas.studentName = enrollment.user?.name ?? null
+    }
+    state.loadingStudent = false
+    state.notify()
+  } catch (e) {
+    console.warn("[UEU] Canvas enrollment lookup failed, falling back to email search:", e)
+    const email = state.caseData?.contactEmail
+    if (email) {
+      await lookupCanvasStudentByEmail(email)
+    } else {
+      state.loadingStudent = false
+      state.studentError = "Could not resolve student from Canvas enrollment"
+      state.notify()
+    }
+  }
+}
+
+/** Fetch the SF Contact record and use it to find the Canvas student */
+async function resolveStudentFromContact(contactId: string) {
+  try {
+    const contact = await getRecord<Record<string, unknown>>("Contact", contactId)
+
+    // SF Contact may have a Canvas User ID field directly
+    const canvasUserId = pick(contact, "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c")
+    if (canvasUserId && state.canvas) {
+      state.canvas.studentId = canvasUserId
+      state.canvas.studentName = pick(contact, "Name") ?? null
+      state.loadingStudent = false
+      state.notify()
+      return
+    }
+
+    // Fall back to global Canvas search by email
+    const email = pick(contact, "Email") ?? state.caseData?.contactEmail
+    if (email) {
+      await lookupCanvasStudentByEmail(email)
+    } else {
+      state.loadingStudent = false
+      state.studentError = "No email on contact record"
+      state.notify()
+    }
+  } catch (e) {
+    console.warn("[UEU] Failed to fetch Contact:", e)
+    // Fall back to whatever email we have on the case
+    const email = state.caseData?.contactEmail
+    if (email) {
+      await lookupCanvasStudentByEmail(email)
+    } else {
+      state.loadingStudent = false
+      state.studentError = "Could not look up student"
+      state.notify()
+    }
+  }
+}
+
+/** Search Canvas globally by email — not course-scoped */
+async function lookupCanvasStudentByEmail(email: string) {
+  try {
+    // Try global user search first (requires admin scope but worth trying)
+    const users = await canvasFetch<Array<{ id: number; name: string }>>(
+      `/api/v1/users?search_term=${encodeURIComponent(email)}&per_page=1`
+    )
+    if (users.length > 0 && state.canvas) {
+      state.canvas.studentId = String(users[0].id)
+      state.canvas.studentName = users[0].name
+      state.loadingStudent = false
+      state.notify()
+      return
+    }
+  } catch {
+    // Global search may not be permitted — fall through to course-scoped
+  }
+
+  // Fall back to course-scoped search
+  const courseId = state.canvas?.courseId
+  if (courseId) {
+    try {
+      const users = await canvasFetch<Array<{ id: number; name: string }>>(
+        `/api/v1/courses/${courseId}/search_users?search_term=${encodeURIComponent(email)}&per_page=1`
+      )
+      if (users.length > 0 && state.canvas) {
+        state.canvas.studentId = String(users[0].id)
+        state.canvas.studentName = users[0].name
+      } else {
+        state.studentError = "Student not found in Canvas"
+      }
+    } catch {
+      state.studentError = "Could not look up student in Canvas"
+    }
+  }
+
+  state.loadingStudent = false
+  state.notify()
+}
+
+/** Fetch Course Offering and set Canvas course state. Returns canvasId if resolved, null otherwise. */
+async function resolveCanvasFromCo(coId: string, onName: (name: string) => void): Promise<string | null> {
+  state.loadingCourseOffering = true
+  state.courseOfferingError = null
+  state.notify()
+
+  try {
+    const co = await getRecord<Record<string, unknown>>("CourseOffering", coId)
+    const name = pick(co, "Name")
+    if (name) onName(name)
+
+    const canvasId = pick(co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
+    state.loadingCourseOffering = false
+
+    if (!canvasId) {
+      state.courseOfferingError = "No Canvas Course ID on this Course Offering"
+      state.notify()
+      return null
+    }
+
+    state.canvas = { courseId: canvasId, url: `https://unity.instructure.com/courses/${canvasId}`, studentId: null, studentName: null }
+    state.notify()
+    return canvasId
+  } catch (e) {
+    state.loadingCourseOffering = false
+    state.courseOfferingError = "Could not load Course Offering"
+    state.notify()
+    console.warn("[UEU] Failed to fetch Course Offering:", e)
+    return null
+  }
+}
+
+/** Resolve student after canvas is set — tries enrollment → contact → email in order */
+async function resolveStudent(opts: { enrollmentId?: string | null; contactId?: string | null; email?: string | null }) {
+  state.loadingStudent = true
+  state.studentError = null
+  state.notify()
+
+  if (opts.enrollmentId) {
+    await resolveStudentFromEnrollment(opts.enrollmentId)
+    return
+  }
+  if (opts.contactId) {
+    await resolveStudentFromContact(opts.contactId)
+    return
+  }
+  if (opts.email) {
+    await lookupCanvasStudentByEmail(opts.email)
+    return
+  }
+  state.loadingStudent = false
+  state.studentError = "No student identifier available"
+  state.notify()
+}
+
 async function loadCase(recordId: string) {
   state.loading = true
+  state.loadingCourseOffering = false
+  state.loadingStudent = false
   state.error = null
+  state.courseOfferingError = null
+  state.studentError = null
   state.caseData = null
   state.dishonesty = null
+  state.gradeAppeal = null
   state.canvas = null
   state.notify()
 
@@ -150,42 +353,53 @@ async function loadCase(recordId: string) {
         instructorEmail: pick(rec, "Instructor_Email__c"),
       }
 
-      // Follow the Course Offering lookup to get Canvas Course ID
       if (courseOfferingId) {
-        try {
-          const co = await getRecord<Record<string, unknown>>("CourseOffering", courseOfferingId)
-          if (state.dishonesty) {
-            state.dishonesty.courseOfferingName = pick(co, "Name") ?? null
-          }
-          const canvasId = pick(co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
-          if (canvasId) {
-            const canvasUrl = `https://unity.instructure.com/courses/${canvasId}`
-            state.canvas = {
-              courseId: canvasId,
-              url: canvasUrl,
-              studentId: null,
-              studentName: null,
-            }
-            state.notify()
+        const canvasId = await resolveCanvasFromCo(courseOfferingId, (name) => {
+          if (state.dishonesty) state.dishonesty.courseOfferingName = name
+        })
+        if (canvasId) {
+          await resolveStudent({ email: state.caseData?.contactEmail })
+        }
+      }
+    }
 
-            // Look up student in Canvas by email
-            const email = state.caseData?.contactEmail
-            if (email) {
-              try {
-                const users = await canvasFetch<Array<{ id: number; name: string }>>(
-                  `/api/v1/courses/${canvasId}/search_users?search_term=${encodeURIComponent(email)}&per_page=1`
-                )
-                if (users.length > 0 && state.canvas) {
-                  state.canvas.studentId = String(users[0].id)
-                  state.canvas.studentName = users[0].name
-                }
-              } catch (e) {
-                console.warn("[UEU] Failed to find student in Canvas:", e)
-              }
-            }
-          }
-        } catch (e) {
-          console.warn("[UEU] Failed to fetch Course Offering:", e)
+    // Grade appeal fields
+    const appealReason = pick(rec, "Grade_Appeal_Reason__c", "GradeAppealReason__c")
+    const currentGrade = pick(rec, "Current_Grade__c", "CurrentGrade__c")
+    const changedGrade = pick(rec, "Changed_Grade__c", "ChangedGrade__c")
+    const decisionStatus = pick(rec, "Decision_Status__c", "DecisionStatus__c")
+    const copId = pick(rec, "Course_Offering_Participant__c", "CourseOfferingParticipant__c")
+
+    if (appealReason || currentGrade || copId) {
+      let coId = pick(rec, "Course_Offering__c", "CourseOffering__c")
+      let enrollmentId: string | null = null
+      let contactId: string | null = null
+
+      if (!coId && copId) {
+        const cop = await resolveCopToCoId(copId)
+        coId = cop.coId
+        enrollmentId = cop.enrollmentId
+        contactId = cop.contactId
+      }
+
+      state.gradeAppeal = {
+        courseOfferingId: coId,
+        courseOfferingName: null,
+        courseOfferingParticipantId: copId,
+        currentGrade,
+        changedGrade,
+        appealReason,
+        decisionStatus,
+        instructor: pick(rec, "Instructor_Name__c", "Instructor__c"),
+        instructorEmail: pick(rec, "Instructor_Email__c"),
+      }
+
+      if (coId) {
+        const canvasId = await resolveCanvasFromCo(coId, (name) => {
+          if (state.gradeAppeal) state.gradeAppeal.courseOfferingName = name
+        })
+        if (canvasId) {
+          await resolveStudent({ enrollmentId, contactId, email: state.caseData?.contactEmail })
         }
       }
     }
@@ -213,6 +427,8 @@ async function loadCourseOffering(recordId: string) {
       state.canvas = {
         courseId: canvasId,
         url: `https://unity.instructure.com/courses/${canvasId}`,
+        studentId: null,
+        studentName: null,
       }
     }
     state.loading = false
@@ -235,6 +451,7 @@ async function onNavigate() {
       state.page = null
       state.caseData = null
       state.dishonesty = null
+      state.gradeAppeal = null
       state.canvas = null
       state.loading = false
       state.error = null
