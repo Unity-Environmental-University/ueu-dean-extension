@@ -120,6 +120,17 @@ function classifyIncident(raw: string | null): string {
   return "other"
 }
 
+/**
+ * Navigation token — incremented on every navigation event.
+ * Async operations capture the token at start and bail if it changes,
+ * preventing stale results from a superseded navigation from writing to state.
+ */
+let navToken = 0
+
+function stale(token: number): boolean {
+  return token !== navToken
+}
+
 /** Try multiple field name variants — SF custom fields are unpredictable */
 function pick(record: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) {
@@ -309,7 +320,7 @@ async function resolveStudent(opts: { enrollmentId?: string | null; contactId?: 
   state.notify()
 }
 
-async function loadCase(recordId: string) {
+async function loadCase(recordId: string, token: number) {
   state.loading = true
   state.loadingCourseOffering = false
   state.loadingStudent = false
@@ -324,6 +335,7 @@ async function loadCase(recordId: string) {
 
   try {
     const rec = await getRecord<Record<string, unknown>>("Case", recordId)
+    if (stale(token)) return
 
     // Basic case info
     state.caseData = {
@@ -355,13 +367,15 @@ async function loadCase(recordId: string) {
 
       if (courseOfferingId) {
         const canvasId = await resolveCanvasFromCo(courseOfferingId, (name) => {
-          if (state.dishonesty) state.dishonesty.courseOfferingName = name
+          if (!stale(token) && state.dishonesty) state.dishonesty.courseOfferingName = name
         })
-        if (canvasId) {
+        if (canvasId && !stale(token)) {
           await resolveStudent({ email: state.caseData?.contactEmail })
         }
       }
     }
+
+    if (stale(token)) return
 
     // Grade appeal fields
     const appealReason = pick(rec, "Grade_Appeal_Reason__c", "GradeAppealReason__c")
@@ -377,6 +391,7 @@ async function loadCase(recordId: string) {
 
       if (!coId && copId) {
         const cop = await resolveCopToCoId(copId)
+        if (stale(token)) return
         coId = cop.coId
         enrollmentId = cop.enrollmentId
         contactId = cop.contactId
@@ -396,17 +411,19 @@ async function loadCase(recordId: string) {
 
       if (coId) {
         const canvasId = await resolveCanvasFromCo(coId, (name) => {
-          if (state.gradeAppeal) state.gradeAppeal.courseOfferingName = name
+          if (!stale(token) && state.gradeAppeal) state.gradeAppeal.courseOfferingName = name
         })
-        if (canvasId) {
+        if (canvasId && !stale(token)) {
           await resolveStudent({ enrollmentId, contactId, email: state.caseData?.contactEmail })
         }
       }
     }
 
+    if (stale(token)) return
     state.loading = false
     state.notify()
   } catch (e) {
+    if (stale(token)) return
     state.loading = false
     state.error = e instanceof Error ? e.message : String(e)
     state.notify()
@@ -414,7 +431,7 @@ async function loadCase(recordId: string) {
   }
 }
 
-async function loadCourseOffering(recordId: string) {
+async function loadCourseOffering(recordId: string, token: number) {
   state.loading = true
   state.error = null
   state.canvas = null
@@ -422,6 +439,7 @@ async function loadCourseOffering(recordId: string) {
 
   try {
     const co = await getRecord<Record<string, unknown>>("CourseOffering", recordId)
+    if (stale(token)) return
     const canvasId = pick(co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
     if (canvasId) {
       state.canvas = {
@@ -434,6 +452,7 @@ async function loadCourseOffering(recordId: string) {
     state.loading = false
     state.notify()
   } catch (e) {
+    if (stale(token)) return
     state.loading = false
     state.error = e instanceof Error ? e.message : String(e)
     state.notify()
@@ -464,9 +483,11 @@ async function onNavigate() {
   if (state.page?.recordId === parsed.recordId) return
 
   state.page = parsed
+  const token = ++navToken
 
   // Gate behind explicit user consent
   const perms = await getPermissions()
+  if (stale(token)) return
   if (!perms.sfApi) {
     state.loading = false
     state.error = null
@@ -475,9 +496,9 @@ async function onNavigate() {
   }
 
   if (parsed.objectType === "Case") {
-    await loadCase(parsed.recordId)
+    await loadCase(parsed.recordId, token)
   } else if (parsed.objectType === "CourseOffering") {
-    await loadCourseOffering(parsed.recordId)
+    await loadCourseOffering(parsed.recordId, token)
   }
 }
 
