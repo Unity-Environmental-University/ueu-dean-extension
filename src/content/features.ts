@@ -6,7 +6,7 @@
  */
 
 import browser from "webextension-polyfill"
-import { getRecord, parseRecordUrl } from "./sfapi"
+import { getRecord, parseRecordUrl, describeObject } from "./sfapi"
 import { getPermissions } from "./permissions"
 
 const CANVAS_HOST = "unity.instructure.com"
@@ -147,6 +147,32 @@ function pick(record: Record<string, unknown>, ...keys: string[]): string | null
 
 function diag(type: string, detail: string) {
   state.diagnostics.push({ type, detail })
+}
+
+/**
+ * Build a field accessor for a described SObject record.
+ * Looks up by human label first (exact, from describe), falls back to pick() variants.
+ * Logs what it found and how.
+ */
+function makeFieldAccessor(record: Record<string, unknown>, fieldMap: Map<string, { name: string }> | null) {
+  return function get(label: string, ...fallbackKeys: string[]): string | null {
+    // Try describe-based lookup first
+    if (fieldMap) {
+      const info = fieldMap.get(label.toLowerCase())
+      if (info) {
+        const v = record[info.name]
+        if (v != null && v !== "") {
+          diag("field-hit", `"${label}" → ${info.name}`)
+          return String(v)
+        }
+        diag("field-miss", `"${label}" → ${info.name} (present but empty)`)
+      } else {
+        diag("field-unknown", `"${label}" not in describe`)
+      }
+    }
+    // Fall back to pick() with explicit variants
+    return pick(record, ...fallbackKeys)
+  }
 }
 
 /** Follow Course Offering Participant → return coId and student lookup hints (no side effects) */
@@ -369,25 +395,32 @@ async function loadCase(recordId: string, token: number) {
   state.notify()
 
   try {
-    const rec = await getRecord<Record<string, unknown>>("Case", recordId)
+    // Describe the Case object and fetch the record in parallel
+    const [fieldMap, rec] = await Promise.all([
+      describeObject("Case").catch(() => null),
+      getRecord<Record<string, unknown>>("Case", recordId),
+    ])
     if (stale(token)) return
+
+    if (fieldMap) diag("describe", `Case: ${fieldMap.size} fields`)
+    const f = makeFieldAccessor(rec, fieldMap)
 
     // Basic case info
     state.caseData = {
-      caseNumber: pick(rec, "CaseNumber") ?? "",
-      status: pick(rec, "Status") ?? "unknown",
-      contactName: pick(rec, "Contact_Name__c", "ContactId") ?? "",
-      contactEmail: pick(rec, "Contact_Email__c", "ContactEmail", "SuppliedEmail") ?? "",
-      accountName: pick(rec, "Account_Name__c", "AccountId") ?? "",
-      type: pick(rec, "Type") ?? "",
-      subType: pick(rec, "SubType__c", "Sub_Type__c") ?? "",
-      subject: pick(rec, "Subject") ?? "",
+      caseNumber: f("Case Number", "CaseNumber") ?? "",
+      status: f("Status", "Status") ?? "unknown",
+      contactName: f("Contact Name", "Contact_Name__c", "ContactId") ?? "",
+      contactEmail: f("Contact Email", "Contact_Email__c", "ContactEmail", "SuppliedEmail") ?? "",
+      accountName: f("Account Name", "Account_Name__c", "AccountId") ?? "",
+      type: f("Type", "Type") ?? "",
+      subType: f("Sub Type", "SubType__c", "Sub_Type__c") ?? "",
+      subject: f("Subject", "Subject") ?? "",
     }
 
     // Dishonesty fields (may or may not be on this case)
-    const courseOfferingId = pick(rec, "Course_Offering__c", "CourseOffering__c")
-    const incidentRaw = pick(rec, "Incident_Type__c", "Type_of_Incident__c", "Category__c")
-    const assignmentName = pick(rec, "Assignment__c", "Assignment_Name__c")
+    const courseOfferingId = f("Course Offering", "Course_Offering__c", "CourseOffering__c")
+    const incidentRaw = f("Incident Type", "Incident_Type__c", "Type_of_Incident__c", "Category__c")
+    const assignmentName = f("Assignment", "Assignment__c", "Assignment_Name__c")
 
     if (courseOfferingId || incidentRaw) {
       state.dishonesty = {
@@ -395,9 +428,9 @@ async function loadCase(recordId: string, token: number) {
         courseOfferingName: null, // will fill from CO record
         incidentType: classifyIncident(incidentRaw),
         assignmentName,
-        severity: pick(rec, "Severity__c"),
-        instructor: pick(rec, "Instructor_Name__c", "Instructor__c"),
-        instructorEmail: pick(rec, "Instructor_Email__c"),
+        severity: f("Severity", "Severity__c"),
+        instructor: f("Instructor", "Instructor_Name__c", "Instructor__c"),
+        instructorEmail: f("Instructor Email", "Instructor_Email__c"),
       }
 
       if (courseOfferingId) {
@@ -413,14 +446,14 @@ async function loadCase(recordId: string, token: number) {
     if (stale(token)) return
 
     // Grade appeal fields
-    const appealReason = pick(rec, "Grade_Appeal_Reason__c", "GradeAppealReason__c")
-    const currentGrade = pick(rec, "Current_Grade__c", "CurrentGrade__c")
-    const changedGrade = pick(rec, "Changed_Grade__c", "ChangedGrade__c")
-    const decisionStatus = pick(rec, "Decision_Status__c", "DecisionStatus__c")
-    const copId = pick(rec, "Course_Offering_Participant__c", "CourseOfferingParticipant__c")
+    const appealReason = f("Grade Appeal Reason", "Grade_Appeal_Reason__c", "GradeAppealReason__c")
+    const currentGrade = f("Current Grade", "Current_Grade__c", "CurrentGrade__c")
+    const changedGrade = f("Changed Grade", "Changed_Grade__c", "ChangedGrade__c")
+    const decisionStatus = f("Decision Status", "Decision_Status__c", "DecisionStatus__c")
+    const copId = f("Course Offering Participant", "Course_Offering_Participant__c", "CourseOfferingParticipant__c")
 
     if (appealReason || currentGrade || copId) {
-      let coId = pick(rec, "Course_Offering__c", "CourseOffering__c")
+      let coId = f("Course Offering", "Course_Offering__c", "CourseOffering__c")
       let enrollmentId: string | null = null
       let contactId: string | null = null
 
@@ -440,8 +473,8 @@ async function loadCase(recordId: string, token: number) {
         changedGrade,
         appealReason,
         decisionStatus,
-        instructor: pick(rec, "Instructor_Name__c", "Instructor__c"),
-        instructorEmail: pick(rec, "Instructor_Email__c"),
+        instructor: f("Instructor", "Instructor_Name__c", "Instructor__c"),
+        instructorEmail: f("Instructor Email", "Instructor_Email__c"),
       }
 
       if (coId) {

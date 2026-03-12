@@ -129,18 +129,24 @@ export function Overlay() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  async function sendCanvasMessage(subject: string, body: string, recipientId?: string) {
+    const settings = await getSettings()
+    const recipient = recipientId ?? settings.supportCanvasId
+    if (!recipient) throw new Error("No support Canvas ID configured")
+    await browser.runtime.sendMessage({ type: "canvas-message", recipientId: recipient, subject, body })
+  }
+
+  function caseTag() {
+    const n = state.caseData?.caseNumber ?? state.page?.recordId ?? ""
+    return n ? ` — case ${n}` : ""
+  }
+
   async function handleSendDiagnostic() {
     const recipientId = supportId().trim()
     if (!recipientId) return
     setSendStatus("sending")
     try {
-      const caseNum = state.caseData?.caseNumber ?? state.page?.recordId ?? "unknown"
-      await browser.runtime.sendMessage({
-        type: "canvas-message",
-        recipientId,
-        subject: `Dean Tools diagnostic — case ${caseNum}`,
-        body: buildDiagnosticText(),
-      })
+      await sendCanvasMessage(`Dean Tools diagnostic${caseTag()}`, buildDiagnosticText(), recipientId)
       setSendStatus("sent")
       setTimeout(() => setSendStatus("idle"), 3000)
     } catch {
@@ -154,15 +160,7 @@ export function Overlay() {
     if (!text) return
     setFeedbackStatus("sending")
     try {
-      const settings = await getSettings()
-      const caseNum = state.caseData?.caseNumber ?? state.page?.recordId ?? ""
-      const subject = caseNum ? `Dean Tools feedback — case ${caseNum}` : "Dean Tools feedback"
-      await browser.runtime.sendMessage({
-        type: "canvas-message",
-        recipientId: settings.supportCanvasId,
-        subject,
-        body: text,
-      })
+      await sendCanvasMessage(`Dean Tools feedback${caseTag()}`, text)
       setFeedbackStatus("sent")
       setFeedbackText("")
       setTimeout(() => { setFeedbackStatus("idle"); setFeedbackOpen(false) }, 2000)
