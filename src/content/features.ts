@@ -395,11 +395,12 @@ async function loadCase(recordId: string, token: number) {
   state.notify()
 
   try {
-    // Describe the Case object and fetch the record in parallel
-    const [fieldMap, rec] = await Promise.all([
-      describeObject("Case").catch(() => null),
-      getRecord<Record<string, unknown>>("Case", recordId),
-    ])
+    // Fetch the record first — fast, stale check before anything else
+    const rec = await getRecord<Record<string, unknown>>("Case", recordId)
+    if (stale(token)) return
+
+    // Describe is slower (large payload) — do it after stale check, use cache on repeat visits
+    const fieldMap = await describeObject("Case").catch(() => null)
     if (stale(token)) return
 
     if (fieldMap) diag("describe", `Case: ${fieldMap.size} fields`)
