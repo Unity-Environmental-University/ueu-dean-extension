@@ -1,28 +1,30 @@
-## Usage
+# Dean Tools
+
+A browser extension that lives between Stratus and Canvas and makes the next step shorter.
+
+When you're on a case, the student's Canvas grades are three tabs away. This gets it to one button.
+
+**[Documentation](https://unity-environmental-university.github.io/ueu-dean-extension/)** · **[Releases](https://github.com/Unity-Environmental-University/ueu-dean-extension/releases)** · **[Install guide](https://unity-environmental-university.github.io/ueu-dean-extension/install.html)**
+
+---
+
+## For staff
+
+Download the latest release zip, unzip it, and follow the [install guide](https://unity-environmental-university.github.io/ueu-dean-extension/install.html) to load it into Chrome.
+
+## For developers
 
 ```bash
-$ npm install # or pnpm install or yarn install
+pnpm install
+pnpm dev       # development build with watch
+pnpm build     # production build → dist/
 ```
 
-### Learn more on the [Solid Website](https://solidjs.com) and come chat with us on our [Discord](https://discord.com/invite/solidjs)
+Load the `dist/` folder as an unpacked extension in `chrome://extensions` with Developer mode on.
 
-## Available Scripts
+Releases are tagged on `main`. To cut a new release, tag and push:
 
-In the project directory, you can run:
-
-### `npm run dev`
-
-Runs the app in the development mode.<br>
-Open [http://localhost:5173](http://localhost:5173) to view it in the browser.
-
-### `npm run build`
-
-Builds the app for production to the `dist` folder.<br>
-It correctly bundles Solid in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
-
-## Deployment
-
-Learn more about deploying your application with the [documentations](https://vite.dev/guide/static-deploy.html)
+```bash
+git tag -a v0.X.0 -m "Release notes"
+git push origin v0.X.0
+```

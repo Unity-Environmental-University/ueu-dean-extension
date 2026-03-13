@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Install — Dean Tools</title>
+<style>
+
+:root {
+  --cream: #FAF7F2;
+  --ink: #251A10;
+  --ink-mid: #6B5344;
+  --ink-light: #A08070;
+  --coral: #D94F2A;
+  --brass: #B87D2A;
+  --teal: #1B7A68;
+  --grid: #EDE5D8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.75;
+}
+
+.top-nav {
+  padding: 20px 24px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.back-link {
+  font-size: 0.85em;
+  color: var(--ink-mid);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s ease;
+}
+
+.back-link:hover { color: var(--teal); }
+
+.page-header {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 24px 48px;
+}
+
+.eyebrow {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--brass);
+  margin-bottom: 12px;
+}
+
+.page-header h1 {
+  font-size: clamp(1.8em, 5vw, 3em);
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  margin-bottom: 16px;
+}
+
+.setup-line {
+  font-size: 1.05em;
+  color: var(--ink-mid);
+  max-width: 480px;
+}
+
+.steps {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.step {
+  display: flex;
+  gap: 24px;
+  padding: 28px 0;
+  border-top: 1px solid var(--grid);
+}
+
+.step:last-child {
+  border-bottom: 1px solid var(--grid);
+}
+
+.step-number {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--brass);
+  padding-top: 4px;
+  min-width: 28px;
+  flex-shrink: 0;
+}
+
+.step-body h2 {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+.step-body p {
+  font-size: 0.95em;
+  color: var(--ink-mid);
+  line-height: 1.7;
+}
+
+.step-body p + p {
+  margin-top: 8px;
+}
+
+.step-body .note {
+  margin-top: 10px;
+  font-size: 0.88em;
+  color: var(--ink-light);
+  font-style: italic;
+}
+
+.step-body .path {
+  display: inline-block;
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 0.88em;
+  background: var(--grid);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+
+.step-body a {
+  color: var(--teal);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.step-body a:hover {
+  border-bottom-color: var(--teal);
+}
+
+footer {
+  border-top: 1px solid var(--grid);
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.footer-inner {
+  max-width: 720px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-credit {
+  font-size: 0.8em;
+  color: var(--ink-light);
+}
+
+.footer-link {
+  font-size: 0.8em;
+  color: var(--ink-light);
+  text-decoration: none;
+  border-bottom: 1px solid var(--grid);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--teal);
+  border-color: var(--teal);
+}
+
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a class="back-link" href="index.html">← Dean Tools</a>
+</nav>
+
+<div class="page-header">
+  <div class="eyebrow">Installation</div>
+  <h1>Get it running<br>in five minutes.</h1>
+  <p class="setup-line">Chrome doesn't install this from the store. You load it directly from a downloaded folder. Here's how.</p>
+</div>
+
+<div class="steps">
+
+  <div class="step">
+    <div class="step-number">01</div>
+    <div class="step-body">
+      <h2>Download the latest release</h2>
+      <p>Go to the <a href="https://github.com/Unity-Environmental-University/ueu-dean-extension/releases" target="_blank">releases page</a> and download the <strong>.zip</strong> file from the most recent release.</p>
+      <p class="note">The file will be named something like <span class="path">ueu-dean-extension-v0.2.0.zip</span>.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">02</div>
+    <div class="step-body">
+      <h2>Unzip it somewhere stable</h2>
+      <p>Double-click the zip to unzip it. Move the resulting folder somewhere you won't accidentally delete it — your Documents folder works well.</p>
+      <p class="note">Chrome loads the extension from this folder every time it starts. If you move or delete the folder later, the extension will stop working.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">03</div>
+    <div class="step-body">
+      <h2>Open Chrome's extension manager</h2>
+      <p>In Chrome, go to <span class="path">chrome://extensions</span> — type that directly into the address bar and press Enter.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">04</div>
+    <div class="step-body">
+      <h2>Turn on Developer mode</h2>
+      <p>In the top-right corner of the extensions page, flip the <strong>Developer mode</strong> toggle on. A row of new buttons will appear.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">05</div>
+    <div class="step-body">
+      <h2>Click "Load unpacked"</h2>
+      <p>Click the <strong>Load unpacked</strong> button, then select the folder you unzipped in step 2.</p>
+      <p>The extension will appear in your list with a green checkmark.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">06</div>
+    <div class="step-body">
+      <h2>Pin it to your toolbar</h2>
+      <p>Click the puzzle-piece icon (🧩) in Chrome's toolbar, find <strong>Dean Tools</strong>, and click the pin icon so it stays visible.</p>
+      <p>That's it. Open any Stratus case and the <strong>U</strong> button will appear in the bottom-right corner of the page.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-credit">Built by Unity Environmental University</span>
+    <a class="footer-link" href="changelog.md">Changelog</a>
+  </div>
+</footer>
+
+</body>
+</html>
