@@ -14,7 +14,7 @@
     }
   },
 
-  "permissions": ["storage", "activeTab", "cookies"],
+  "permissions": ["storage", "activeTab", "cookies", "nativeMessaging"],
 
   "host_permissions": [
     "https://*.salesforce.com/*",

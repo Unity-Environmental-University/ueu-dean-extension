@@ -4,7 +4,7 @@
  * Everything renders inside the Shadow DOM so our styles apply.
  */
 
-import { createSignal, createResource, Show } from "solid-js"
+import { createSignal, createResource, Show, onCleanup } from "solid-js"
 import browser from "webextension-polyfill"
 import { CanvasLink } from "./CanvasLink"
 import { getPermissions, setPermissions, revokeAll, getSettings, saveSettings } from "../content/permissions"
@@ -22,6 +22,15 @@ export function Overlay() {
   const [perms, { refetch: refetchPerms }] = createResource(getPermissions)
   const [supportId, setSupportId] = createSignal("")
   getSettings().then(s => setSupportId(s.supportCanvasId))
+
+  // Reactive state version — bumped whenever features.ts calls state.notify()
+  const [version, setVersion] = createSignal(0)
+  const bump = () => setVersion(v => v + 1)
+  state.listeners.add(bump)
+  onCleanup(() => state.listeners.delete(bump))
+  const diagnostics = () => { version(); return state.diagnostics }
+  const priorCases = () => { version(); return state.priorCases }
+  const loadingPriorCases = () => { version(); return state.loadingPriorCases }
 
   const hasConsent = () => perms()?.sfApi ?? false
 
@@ -43,6 +52,14 @@ export function Overlay() {
       h = ((h << 5) - h + text.charCodeAt(i)) | 0
     }
     return (h >>> 0).toString(16).padStart(8, "0")
+  }
+
+  /** Hash SF IDs and names in diagnostic detail strings — keep field names and types readable */
+  function safeDetail(detail: string): string {
+    // Hash anything that looks like an SF ID (15 or 18 char alphanumeric starting with 0)
+    return detail.replace(/\b0[a-zA-Z0-9]{14,17}\b/g, id => `[${hash(id)}]`)
+                 .replace(/cop-name:(.+)/, (_, n) => `cop-name:[${hash(n)}]`)
+                 .replace(/preferredName=(?!null)(\S+)/, (_, n) => `preferredName=[${hash(n)}]`)
   }
 
   /** Returns true if this element is a label (keep as-is), false if it's a value (hash it) */
@@ -155,19 +172,31 @@ export function Overlay() {
     }
   }
 
-  async function handleSendFeedback() {
+  function handleSendFeedback() {
     const text = feedbackText().trim()
     if (!text) return
-    setFeedbackStatus("sending")
-    try {
-      await sendCanvasMessage(`Dean Tools feedback${caseTag()}`, text)
-      setFeedbackStatus("sent")
-      setFeedbackText("")
-      setTimeout(() => { setFeedbackStatus("idle"); setFeedbackOpen(false) }, 2000)
-    } catch {
-      setFeedbackStatus("error")
-      setTimeout(() => setFeedbackStatus("idle"), 3000)
-    }
+
+    const email = (typeof __FEEDBACK_EMAIL__ !== "undefined" ? __FEEDBACK_EMAIL__ : "") as string
+    if (!email) return
+
+    const subject = `Dean Tools feedback${caseTag()}`
+    const telemetry = buildDiagnosticText()
+    const body = [
+      text,
+      "",
+      "---",
+      "If you have a screenshot, please attach it to this email.",
+      "",
+      telemetry,
+    ].join("\n")
+
+    window.open(
+      `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      "_blank"
+    )
+
+    setFeedbackText("")
+    setFeedbackOpen(false)
   }
 
   async function handleCapture() {
@@ -287,6 +316,32 @@ export function Overlay() {
                   <pre class="ueu-dev-raw-pre">{JSON.stringify(state.contactRaw, null, 2)}</pre>
                 </details>
               </Show>
+              <Show when={loadingPriorCases()}>
+                <p style={{"color": "#888", "font-size": "0.8rem", "margin": "0.25rem 0"}}>Loading prior cases…</p>
+              </Show>
+              <Show when={priorCases() !== null}>
+                <details class="ueu-dev-raw" open>
+                  <summary>Prior cases ({priorCases()?.length ?? 0})</summary>
+                  <pre class="ueu-dev-raw-pre">{JSON.stringify(priorCases(), null, 2)}</pre>
+                </details>
+              </Show>
+              <Show when={diagnostics().length > 0}>
+                <details class="ueu-dev-raw">
+                  <summary>
+                    Diagnostics ({diagnostics().length})
+                    {" "}<button
+                      style={{"font-size": "0.65rem", "padding": "0.1rem 0.4rem", "margin-left": "0.5rem"}}
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        await navigator.clipboard.writeText(diagnostics().map(d => `${d.type}: ${d.detail}`).join("\n"))
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      }}
+                    >{copied() ? "Copied!" : "Copy"}</button>
+                  </summary>
+                  <pre class="ueu-dev-raw-pre">{diagnostics().map(d => `${d.type}: ${safeDetail(d.detail)}`).join("\n")}</pre>
+                </details>
+              </Show>
 
               <div class="ueu-dev-support">
                 <label class="ueu-dev-label">Support Canvas ID</label>
@@ -360,10 +415,10 @@ export function Overlay() {
                     <button onClick={() => { setFeedbackOpen(false); setFeedbackText("") }}>Cancel</button>
                     <button
                       class="ueu-btn-consent"
-                      disabled={!feedbackText().trim() || feedbackStatus() === "sending"}
+                      disabled={!feedbackText().trim()}
                       onClick={handleSendFeedback}
                     >
-                      {feedbackStatus() === "sending" ? "Sending…" : feedbackStatus() === "sent" ? "Sent!" : feedbackStatus() === "error" ? "Failed" : "Send"}
+                      Open in Mail →
                     </button>
                   </div>
                 </div>

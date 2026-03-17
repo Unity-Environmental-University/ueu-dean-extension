@@ -67,6 +67,19 @@ export async function fieldByLabel(objectType: string, label: string): Promise<s
   return map.get(label.toLowerCase())?.name ?? null
 }
 
+export interface SoqlResult<T = Record<string, unknown>> {
+  totalSize: number
+  done: boolean
+  records: T[]
+}
+
+/** Run a SOQL query via the SF REST API */
+export async function sfQuery<T = Record<string, unknown>>(
+  soql: string,
+): Promise<SoqlResult<T>> {
+  return sfFetch<SoqlResult<T>>(`/query?q=${encodeURIComponent(soql)}`)
+}
+
 /** Parse a Lightning URL into object type + record ID */
 export function parseRecordUrl(
   pathname: string,

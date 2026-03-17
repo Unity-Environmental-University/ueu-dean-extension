@@ -5,7 +5,7 @@
  * All data comes from SF REST API — no DOM scraping.
  */
 
-import { createSignal, onCleanup, Show, createEffect } from "solid-js"
+import { createSignal, onCleanup, Show, createEffect, For } from "solid-js"
 import browser from "webextension-polyfill"
 import { state, refresh } from "../content/features"
 import { getSettings } from "../content/permissions"
@@ -33,6 +33,9 @@ export function CanvasLink() {
   const error = () => { version(); return state.error }
   const courseOfferingError = () => { version(); return state.courseOfferingError }
   const studentError = () => { version(); return state.studentError }
+  const page = () => { version(); return state.page }
+  const priorCases = () => { version(); return state.priorCases }
+  const loadingPriorCases = () => { version(); return state.loadingPriorCases }
   const anyError = () => error() || courseOfferingError() || (studentError() && studentError() !== "canvas-session-required")
 
   const [reportStatus, setReportStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
@@ -105,6 +108,38 @@ export function CanvasLink() {
             </Show>
           </article>
         )}
+      </Show>
+
+      {/* Prior cases — always visible once case data is loaded */}
+      <Show when={caseData()}>
+        <article>
+          <h3 class="ueu-label">Student History</h3>
+          <Show when={loadingPriorCases()}>
+            <p class="ueu-loading">Loading&hellip;</p>
+          </Show>
+          <Show when={!loadingPriorCases() && priorCases() === null}>
+            <p class="ueu-muted" style={{"font-size": "0.8rem", "color": "#f59e0b"}}>No contact ID — cannot load history</p>
+          </Show>
+          <Show when={priorCases() !== null && priorCases()!.length === 0}>
+            <p class="ueu-muted">No prior cases.</p>
+          </Show>
+          <Show when={priorCases() !== null && priorCases()!.length > 0}>
+            <ul class="ueu-history-list">
+              <For each={priorCases()!}>
+                {c => (
+                  <li class="ueu-history-card">
+                    <a href={`/lightning/r/Case/${c.id}/view`} target="_blank" rel="noopener noreferrer" class="ueu-case-link">{c.caseNumber}</a>
+                    <span class="ueu-history-type">{c.type}{c.subType ? ` · ${c.subType}` : ""}</span>
+                    <span class="ueu-history-right">
+                      <span class="ueu-pill" data-status={c.status.toLowerCase()}>{c.status}</span>
+                      <span class="ueu-history-date">{new Date(c.createdDate).toLocaleDateString()}</span>
+                    </span>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </Show>
+        </article>
       </Show>
 
       {/* Dishonesty details */}
@@ -225,8 +260,12 @@ export function CanvasLink() {
       </Show>
 
       {/* No data state */}
-      <Show when={!loading() && !caseData() && !error()}>
-        <p class="ueu-muted">Navigate to a Case or Course Offering page.</p>
+      <Show when={!loading() && !caseData() && !canvas() && !error()}>
+        <Show when={page()} fallback={
+          <p class="ueu-muted">Navigate to a Case or Course Offering page.</p>
+        }>
+          <p class="ueu-muted">Detecting page<span class="ueu-ellipsis">…</span></p>
+        </Show>
       </Show>
 
       {/* Report button — appears when anything went wrong */}

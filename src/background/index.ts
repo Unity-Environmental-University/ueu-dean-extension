@@ -8,6 +8,7 @@
  */
 
 import browser from "webextension-polyfill"
+import { observe, query } from "./rhizome"
 
 browser.runtime.onInstalled.addListener(() => {
   console.log("[dean-tools] installed")
@@ -108,6 +109,23 @@ browser.runtime.onMessage.addListener((message, _sender) => {
   if (message.type === "canvas-session-check") {
     return browser.cookies.get({ url: `https://${CANVAS_HOST}`, name: "_canvas_session" })
       .then(cookie => ({ hasSession: !!cookie?.value }))
+  }
+
+  if (message.type === "rhizome-observe") {
+    const { subject, predicate, object, confidence, phase, note } = message as {
+      subject: string; predicate: string; object: string
+      confidence?: number; phase?: "volatile" | "fluid" | "salt"; note?: string
+    }
+    return observe({ subject, predicate, object, confidence, phase, note })
+      .then(() => ({ ok: true }))
+      .catch((e: unknown) => ({ ok: false, error: String(e) }))
+  }
+
+  if (message.type === "rhizome-query") {
+    const { subject } = message as { subject: string }
+    return query(subject)
+      .then(edges => ({ ok: true, edges }))
+      .catch((e: unknown) => ({ ok: false, error: String(e), edges: [] }))
   }
 
   return Promise.resolve({ ok: true })

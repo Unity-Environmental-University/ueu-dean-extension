@@ -6,10 +6,55 @@
  */
 
 import browser from "webextension-polyfill"
-import { getRecord, parseRecordUrl, describeObject } from "./sfapi"
+import { getRecord, parseRecordUrl, describeObject, sfQuery } from "./sfapi"
 import { getPermissions } from "./permissions"
 
 const CANVAS_HOST = "unity.instructure.com"
+
+function rhizomeObserve(obs: {
+  subject: string; predicate: string; object: string
+  confidence?: number; phase?: "volatile" | "fluid" | "salt"; note?: string
+}) {
+  // Fire-and-forget — never blocks the UI
+  browser.runtime.sendMessage({ type: "rhizome-observe", ...obs }).catch(() => {})
+}
+
+/**
+ * Emit field-resolution observations for any record type.
+ * Pulls field-hit entries from a diagnostics array and writes them to the graph.
+ * Accumulates over time to reveal which SF API field names are live in this org.
+ */
+function emitFieldObservations(objectType: string, diagnostics: Array<{ type: string; detail: string }>) {
+  for (const d of diagnostics) {
+    if (d.type === "field-hit") {
+      const match = d.detail.match(/"(.+)" → (.+)/)
+      if (match) {
+        rhizomeObserve({
+          subject: `sf-schema:unity/${objectType}`,
+          predicate: "field-resolved",
+          object: match[2],
+          confidence: 1.0,
+          phase: "fluid",
+          note: `label="${match[1]}"`,
+        })
+      }
+    }
+    if (d.type === "pick-hit") {
+      // pick() variant matched — lower confidence than describe-based
+      const match = d.detail.match(/key:(.+)/)
+      if (match) {
+        rhizomeObserve({
+          subject: `sf-schema:unity/${objectType}`,
+          predicate: "field-resolved",
+          object: match[1],
+          confidence: 0.7,
+          phase: "fluid",
+          note: "pick-fallback",
+        })
+      }
+    }
+  }
+}
 
 async function canvasFetch<T>(path: string): Promise<T> {
   const result = await browser.runtime.sendMessage({
@@ -36,10 +81,22 @@ export const state = {
     contactEmail: string
     accountName: string
     accountId: string | null
+    contactId: string | null
     type: string
     subType: string
     subject: string
   } | null,
+
+  /** Prior cases for this student — loaded via SOQL after caseData is set */
+  priorCases: null as Array<{
+    id: string
+    caseNumber: string
+    type: string
+    subType: string | null
+    status: string
+    createdDate: string
+  }> | null,
+  loadingPriorCases: false,
 
   /** Academic dishonesty fields from the case */
   dishonesty: null as {
@@ -118,19 +175,23 @@ function stale(token: number): boolean {
   return token !== navToken
 }
 
+type DiagLog = Array<{ type: string; detail: string }>
+
 /** Try multiple field name variants — SF custom fields are unpredictable */
-function pick(record: Record<string, unknown>, ...keys: string[]): string | null {
+function pick(log: DiagLog, record: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) {
     const v = record[k]
-    if (v != null && v !== "") return String(v)
+    if (v != null && v !== "") {
+      log.push({ type: "pick-hit", detail: `key:${k}` })
+      return String(v)
+    }
   }
-  // Log miss so diagnostics can show which variants were tried
-  state.diagnostics.push({ type: "pick-miss", detail: `tried: ${keys.join(", ")}` })
+  log.push({ type: "pick-miss", detail: `tried: ${keys.join(", ")}` })
   return null
 }
 
-function diag(type: string, detail: string) {
-  state.diagnostics.push({ type, detail })
+function diag(log: DiagLog, type: string, detail: string) {
+  log.push({ type, detail })
 }
 
 /**
@@ -138,24 +199,22 @@ function diag(type: string, detail: string) {
  * Looks up by human label first (exact, from describe), falls back to pick() variants.
  * Logs what it found and how.
  */
-function makeFieldAccessor(record: Record<string, unknown>, fieldMap: Map<string, { name: string }> | null) {
+function makeFieldAccessor(log: DiagLog, record: Record<string, unknown>, fieldMap: Map<string, { name: string }> | null) {
   return function get(label: string, ...fallbackKeys: string[]): string | null {
-    // Try describe-based lookup first
     if (fieldMap) {
       const info = fieldMap.get(label.toLowerCase())
       if (info) {
         const v = record[info.name]
         if (v != null && v !== "") {
-          diag("field-hit", `"${label}" → ${info.name}`)
+          diag(log, "field-hit", `"${label}" → ${info.name}`)
           return String(v)
         }
-        diag("field-miss", `"${label}" → ${info.name} (present but empty)`)
+        diag(log, "field-miss", `"${label}" → ${info.name} (present but empty)`)
       } else {
-        diag("field-unknown", `"${label}" not in describe`)
+        diag(log, "field-unknown", `"${label}" not in describe`)
       }
     }
-    // Fall back to pick() with explicit variants
-    return pick(record, ...fallbackKeys)
+    return pick(log, record, ...fallbackKeys)
   }
 }
 
@@ -168,33 +227,40 @@ async function resolveCopToCoId(copId: string): Promise<{
   preferredName: string | null
   unityId: string | null
 }> {
+  const log: DiagLog = []
   try {
     const cop = await getRecord<Record<string, unknown>>("CourseOfferingParticipant", copId)
     state.copRaw = cop
     const result = {
-      coId: pick(cop, "CourseOfferingId", "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c", "Course_Offering_ID__c", "CourseOffering__c"),
-      enrollmentId: pick(cop, "Canvas_Enrollment_ID__c", "CanvasEnrollmentId__c"),
-      contactId: pick(cop, "ParticipantContactId", "hed__Contact__c", "ContactId", "Contact__c"),
-      accountId: pick(cop, "ParticipantAccountId", "AccountId"),
-      preferredName: pick(cop, "Preferred_Student_Name__c", "PreferredName__c"),
-      unityId: pick(cop, "Unity_ID__c", "UnityId__c"),
+      coId: pick(log, cop, "CourseOfferingId", "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c", "Course_Offering_ID__c", "CourseOffering__c"),
+      enrollmentId: pick(log, cop, "Canvas_Enrollment_ID__c", "CanvasEnrollmentId__c"),
+      contactId: pick(log, cop, "ParticipantContactId", "hed__Contact__c", "ContactId", "Contact__c"),
+      accountId: pick(log, cop, "ParticipantAccountId", "AccountId"),
+      preferredName: pick(log, cop, "Preferred_Student_Name__c", "PreferredName__c"),
+      unityId: pick(log, cop, "Unity_ID__c", "UnityId__c"),
     }
-    diag("cop-resolved", `coId=${result.coId ?? "null"} preferredName=${result.preferredName ?? "null"} unityId=${result.unityId ?? "null"} accountId=${result.accountId ?? "null"}`)
+    diag(log, "cop-resolved", `coId=${result.coId ?? "null"} preferredName=${result.preferredName ?? "null"} unityId=${result.unityId ?? "null"} accountId=${result.accountId ?? "null"}`)
+    state.diagnostics.push(...log)
+    emitFieldObservations("CourseOfferingParticipant", log)
     return result
   } catch (e) {
-    diag("cop-error", String(e))
+    diag(log, "cop-error", String(e))
+    state.diagnostics.push(...log)
     return { coId: null, enrollmentId: null, contactId: null, accountId: null, preferredName: null, unityId: null }
   }
 }
 
 /** Fetch Person Account to get Canvas user ID and gender identity */
 async function resolveFromAccount(accountId: string) {
+  const log: DiagLog = []
   try {
     const account = await getRecord<Record<string, unknown>>("Account", accountId)
     state.contactRaw = account  // reuse slot for display in Dev
-    const canvasUserId = pick(account, "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c", "Canvas_User__c")
-    const genderIdentity = pick(account, "Gender_Identity__c", "GenderIdentity__c", "Gender__c", "Pronouns__c", "Preferred_Pronouns__c")
-    diag("account-resolved", `canvasUserId=${canvasUserId ?? "null"} genderIdentity=${genderIdentity ?? "null"}`)
+    const canvasUserId = pick(log, account, "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c", "Canvas_User__c")
+    const genderIdentity = pick(log, account, "Gender_Identity__c", "GenderIdentity__c", "Gender__c", "Pronouns__c", "Preferred_Pronouns__c")
+    diag(log, "account-resolved", `canvasUserId=${canvasUserId ?? "null"} genderIdentity=${genderIdentity ?? "null"}`)
+    state.diagnostics.push(...log)
+    emitFieldObservations("Account", log)
     if (state.canvas) {
       if (canvasUserId && !state.canvas.studentId) {
         state.canvas.studentId = canvasUserId
@@ -205,7 +271,8 @@ async function resolveFromAccount(accountId: string) {
       state.notify()
     }
   } catch (e) {
-    diag("account-error", String(e))
+    diag(log, "account-error", String(e))
+    state.diagnostics.push(...log)
   }
 }
 
@@ -222,11 +289,11 @@ async function resolveStudentFromEnrollment(enrollmentId: string, fallbackEmail:
   try {
     const enrollmentUrl = `https://unity.instructure.com/courses/${courseId}/enrollments/${enrollmentId}`
     if (state.canvas) state.canvas.enrollmentUrl = enrollmentUrl
-    diag("enrollment-url", enrollmentUrl)
+    state.diagnostics.push({ type: "enrollment-url", detail: enrollmentUrl })
     const enrollments = await canvasFetch<Array<{ id: number; user_id: number; user: { name: string } }>>(
       `/api/v1/courses/${courseId}/enrollments?enrollment_id[]=${enrollmentId}&type[]=StudentEnrollment&state[]=active&state[]=inactive&state[]=completed`
     )
-    diag("enrollment-lookup", `found ${enrollments.length} result(s) for enrollment ${enrollmentId} in course ${courseId}`)
+    state.diagnostics.push({ type: "enrollment-lookup", detail: `found ${enrollments.length} result(s) for enrollment ${enrollmentId} in course ${courseId}` })
     const enrollment = enrollments[0]
     if (enrollment && state.canvas) {
       state.canvas.studentId = String(enrollment.user_id)
@@ -235,9 +302,9 @@ async function resolveStudentFromEnrollment(enrollmentId: string, fallbackEmail:
       state.notify()
       return
     }
-    diag("enrollment-lookup", "enrollment found but empty — falling back")
+    state.diagnostics.push({ type: "enrollment-lookup", detail: "enrollment found but empty — falling back" })
   } catch (e) {
-    diag("enrollment-lookup", `failed: ${e}`)
+    state.diagnostics.push({ type: "enrollment-lookup", detail: `failed: ${e}` })
     if (isAuthError(e)) {
       state.loadingStudent = false
       state.studentError = "canvas-session-required"
@@ -257,21 +324,22 @@ async function resolveStudentFromEnrollment(enrollmentId: string, fallbackEmail:
 
 /** Fetch the SF Contact record and use it to find the Canvas student */
 async function resolveStudentFromContact(contactId: string, fallbackEmail: string | null) {
+  const log: DiagLog = []
   try {
     const contact = await getRecord<Record<string, unknown>>("Contact", contactId)
 
-    // SF Contact may have a Canvas User ID field directly
-    const canvasUserId = pick(contact, "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c")
+    const canvasUserId = pick(log, contact, "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c")
     if (canvasUserId && state.canvas) {
       state.canvas.studentId = canvasUserId
-      state.canvas.studentName = pick(contact, "Name") ?? null
+      state.canvas.studentName = pick(log, contact, "Name") ?? null
+      state.diagnostics.push(...log)
+      emitFieldObservations("Contact", log)
       state.loadingStudent = false
       state.notify()
       return
     }
 
-    // Fall back to global Canvas search by email
-    const email = pick(contact, "Email") ?? fallbackEmail
+    const email = pick(log, contact, "Email") ?? fallbackEmail
     if (email) {
       await lookupCanvasStudentByEmail(email)
     } else {
@@ -279,6 +347,8 @@ async function resolveStudentFromContact(contactId: string, fallbackEmail: strin
       state.studentError = "No email on contact record"
       state.notify()
     }
+    state.diagnostics.push(...log)
+    emitFieldObservations("Contact", log)
   } catch (e) {
     console.warn("[UEU] Failed to fetch Contact:", e)
     if (fallbackEmail) {
@@ -371,22 +441,26 @@ async function resolveCanvasFromCo(coId: string, onName: (name: string) => void)
   state.courseOfferingError = null
   state.notify()
 
+  const log: DiagLog = []
   try {
     const co = await getRecord<Record<string, unknown>>("CourseOffering", coId)
-    const name = pick(co, "Name")
+    const name = pick(log, co, "Name")
     if (name) onName(name)
 
-    const canvasId = pick(co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
+    const canvasId = pick(log, co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
     state.loadingCourseOffering = false
 
     if (!canvasId) {
-      diag("canvas-id-missing", `CourseOffering ${coId} has no Canvas Course ID`)
+      diag(log, "canvas-id-missing", `CourseOffering ${coId} has no Canvas Course ID`)
+      state.diagnostics.push(...log)
       state.courseOfferingError = "No Canvas Course ID on this Course Offering"
       state.notify()
       return null
     }
 
-    diag("canvas-id-resolved", canvasId)
+    diag(log, "canvas-id-resolved", canvasId)
+    state.diagnostics.push(...log)
+    emitFieldObservations("CourseOffering", log)
     state.canvas = { courseId: canvasId, url: `https://unity.instructure.com/courses/${canvasId}`, enrollmentUrl: null, studentId: null, studentName: null }
     state.notify()
     return canvasId
@@ -414,7 +488,7 @@ async function resolveStudent(opts: {
   // Set name from COP directly — no Canvas API needed
   if (opts.preferredName && state.canvas) {
     state.canvas.studentName = opts.preferredName
-    diag("student-lookup-path", `cop-name:${opts.preferredName}`)
+    diag(state.diagnostics, "student-lookup-path", `cop-name:${opts.preferredName}`)
   }
 
   // Fetch Canvas user ID and gender identity from Person Account in background
@@ -424,7 +498,7 @@ async function resolveStudent(opts: {
 
   // Get Canvas user ID via sis_user_id (Unity ID) for grade/profile/masquerade links
   if (opts.unityId) {
-    diag("student-lookup-path", `sis_user_id:${opts.unityId}`)
+    diag(state.diagnostics, "student-lookup-path", `sis_user_id:${opts.unityId}`)
     try {
       const user = await canvasFetch<{ id: number; name: string }>(
         `/api/v1/users/sis_user_id:${opts.unityId}`
@@ -432,10 +506,10 @@ async function resolveStudent(opts: {
       if (user?.id && state.canvas) {
         state.canvas.studentId = String(user.id)
         if (!opts.preferredName) state.canvas.studentName = user.name
-        diag("student-lookup-path", `sis_user_id resolved: ${user.id}`)
+        diag(state.diagnostics, "student-lookup-path", `sis_user_id resolved: ${user.id}`)
       }
     } catch (e) {
-      diag("sis-lookup", `failed: ${e}`)
+      diag(state.diagnostics, "sis-lookup", `failed: ${e}`)
       if (isAuthError(e)) {
         state.studentError = "canvas-session-required"
         state.loadingStudent = false
@@ -444,15 +518,43 @@ async function resolveStudent(opts: {
       }
     }
   } else if (opts.email) {
-    diag("student-lookup-path", `email:${opts.email}`)
+    diag(state.diagnostics, "student-lookup-path", `email:${opts.email}`)
     await lookupCanvasStudentByEmail(opts.email)
     return
   } else if (!opts.preferredName) {
     state.studentError = "No student identifier available"
-    diag("student-lookup-path", "no identifier available")
+    diag(state.diagnostics, "student-lookup-path", "no identifier available")
   }
 
   state.loadingStudent = false
+  state.notify()
+}
+
+/** Query SF for all prior cases linked to the same ContactId */
+async function loadPriorCases(contactId: string, currentCaseId: string, token: number) {
+  state.loadingPriorCases = true
+  state.notify()
+  try {
+    const soql = `SELECT Id, CaseNumber, Type, SubType__c, Status, CreatedDate FROM Case WHERE ContactId = '${contactId}' AND Id != '${currentCaseId}' ORDER BY CreatedDate DESC LIMIT 20`
+    const result = await sfQuery<{
+      Id: string; CaseNumber: string; Type: string
+      SubType__c: string | null; Status: string; CreatedDate: string
+    }>(soql)
+    if (stale(token)) return
+    state.priorCases = result.records.map(r => ({
+      id: r.Id,
+      caseNumber: r.CaseNumber,
+      type: r.Type,
+      subType: r.SubType__c,
+      status: r.Status,
+      createdDate: r.CreatedDate,
+    }))
+    diag(state.diagnostics, "prior-cases", `found ${state.priorCases.length} prior case(s)`)
+  } catch (e) {
+    if (stale(token)) return
+    diag(state.diagnostics, "prior-cases-error", String(e))
+  }
+  state.loadingPriorCases = false
   state.notify()
 }
 
@@ -464,6 +566,8 @@ async function loadCase(recordId: string, token: number) {
   state.courseOfferingError = null
   state.studentError = null
   state.caseData = null
+  state.priorCases = null
+  state.loadingPriorCases = false
   state.dishonesty = null
   state.gradeAppeal = null
   state.canvas = null  // clears studentId/studentName immediately so stale data never shows
@@ -481,16 +585,19 @@ async function loadCase(recordId: string, token: number) {
     const fieldMap = await describeObject("Case").catch(() => null)
     if (stale(token)) return
 
-    if (fieldMap) diag("describe", `Case: ${fieldMap.size} fields`)
-    const f = makeFieldAccessor(rec, fieldMap)
+    if (fieldMap) diag(state.diagnostics, "describe", `Case: ${fieldMap.size} fields`)
+    const f = makeFieldAccessor(state.diagnostics, rec, fieldMap)
 
     // Basic case info
+    const rawContactId = pick(state.diagnostics, rec, "ContactId")
     state.caseData = {
       caseNumber: f("Case Number", "CaseNumber") ?? "",
       status: f("Status", "Status") ?? "unknown",
       contactName: f("Contact Name", "Contact_Name__c", "ContactId") ?? "",
       contactEmail: f("Contact Email", "Contact_Email__c", "ContactEmail", "SuppliedEmail") ?? "",
       accountName: f("Account Name", "Account_Name__c", "AccountId") ?? "",
+      accountId: null,  // will fill from COP
+      contactId: rawContactId,
       type: f("Type", "Type") ?? "",
       subType: f("Sub Type", "SubType__c", "Sub_Type__c") ?? "",
       subject: f("Subject", "Subject") ?? "",
@@ -500,6 +607,7 @@ async function loadCase(recordId: string, token: number) {
     // It gives us coId, enrollmentId, and contactId in one shot, for any case type.
     const copId = f("Course Offering Participant", "Course_Offering_Participant__c", "CourseOfferingParticipant__c")
     let copCoId: string | null = null
+    let copContactId: string | null = null
     let copAccountId: string | null = null
     let copPreferredName: string | null = null
     let copUnityId: string | null = null
@@ -508,6 +616,7 @@ async function loadCase(recordId: string, token: number) {
       const cop = await resolveCopToCoId(copId)
       if (stale(token)) return
       copCoId = cop.coId
+      copContactId = cop.contactId
       copAccountId = cop.accountId
       copPreferredName = cop.preferredName
       copUnityId = cop.unityId
@@ -583,6 +692,37 @@ async function loadCase(recordId: string, token: number) {
     if (stale(token)) return
     state.loading = false
     state.notify()
+
+    // D1: load prior cases for this student via SOQL — SF is authoritative
+    // ContactId may be null on the Case directly (Unity links via COP); fall back to COP's contactId
+    const resolvedContactId = rawContactId ?? copContactId
+    console.log("[UEU] prior-cases-contact", { rawContactId, copContactId, resolvedContactId })
+    diag(state.diagnostics, "prior-cases-contact", `rawContactId=${rawContactId ?? "null"} copContactId=${copContactId ?? "null"} resolved=${resolvedContactId ?? "null"}`)
+    if (resolvedContactId) {
+      loadPriorCases(resolvedContactId, recordId, token)
+    } else {
+      diag(state.diagnostics, "prior-cases-skip", "no contactId available — skipping SOQL query")
+    }
+
+    // Emit field-resolution observations for Case
+    emitFieldObservations("Case", state.diagnostics)
+
+    // Emit sis_user_id success signal
+    if (state.diagnostics.some(d => d.type === "student-lookup-path" && d.detail.startsWith("sis_user_id resolved:"))) {
+      rhizomeObserve({ subject: "sf-schema:unity/COP", predicate: "sis-lookup-succeeded", object: "canvas", confidence: 1.0, phase: "fluid" })
+    }
+
+    // Emit case-type observation (no student identity — just the pattern)
+    if (state.caseData) {
+      rhizomeObserve({
+        subject: `sf-case-type:${state.caseData.type}`,
+        predicate: "observed-in",
+        object: `sf-org:unity`,
+        confidence: 0.8,
+        phase: "fluid",
+        note: state.caseData.subType ?? undefined,
+      })
+    }
   } catch (e) {
     if (stale(token)) return
     state.loading = false
@@ -596,12 +736,14 @@ async function loadCourseOffering(recordId: string, token: number) {
   state.loading = true
   state.error = null
   state.canvas = null
+  state.diagnostics = []
   state.notify()
 
   try {
     const co = await getRecord<Record<string, unknown>>("CourseOffering", recordId)
     if (stale(token)) return
-    const canvasId = pick(co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
+    const coLog: DiagLog = []
+    const canvasId = pick(coLog, co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
     if (canvasId) {
       state.canvas = {
         courseId: canvasId,
@@ -611,8 +753,10 @@ async function loadCourseOffering(recordId: string, token: number) {
         studentName: null,
       }
     }
+    state.diagnostics.push(...coLog)
     state.loading = false
     state.notify()
+    emitFieldObservations("CourseOffering", coLog)
   } catch (e) {
     if (stale(token)) return
     state.loading = false
@@ -622,12 +766,39 @@ async function loadCourseOffering(recordId: string, token: number) {
   }
 }
 
+async function loadTerm(recordId: string, token: number) {
+  state.loading = true
+  state.error = null
+  state.diagnostics = []
+  state.notify()
+
+  try {
+    const term = await getRecord<Record<string, unknown>>("Term", recordId)
+    if (stale(token)) return
+    const termLog: DiagLog = []
+    pick(termLog, term, "Name")
+    pick(termLog, term, "StartDate", "Start_Date__c", "hed__Start_Date__c")
+    pick(termLog, term, "EndDate", "End_Date__c", "hed__End_Date__c")
+    pick(termLog, term, "Status__c", "Status", "hed__Status__c")
+    state.diagnostics.push(...termLog)
+    state.loading = false
+    state.notify()
+    emitFieldObservations("Term", termLog)
+  } catch (e) {
+    if (stale(token)) return
+    state.loading = false
+    state.error = e instanceof Error ? e.message : String(e)
+    state.notify()
+    console.error("[UEU] Failed to load term:", e)
+  }
+}
+
 let navigateTimer: ReturnType<typeof setTimeout> | null = null
 
 /** Handle a URL change — debounced to let SF's SPA routing settle */
 function onNavigate() {
   if (navigateTimer) clearTimeout(navigateTimer)
-  navigateTimer = setTimeout(doNavigate, 80)
+  navigateTimer = setTimeout(doNavigate, 300)
 }
 
 async function doNavigate() {
@@ -648,8 +819,8 @@ async function doNavigate() {
     return
   }
 
-  // Skip if we're already on this record
-  if (state.page?.recordId === parsed.recordId) return
+  // Skip if we're already on this record and have data or are actively loading
+  if (state.page?.recordId === parsed.recordId && (state.loading || state.caseData || state.canvas)) return
 
   state.page = parsed
   const token = ++navToken
@@ -668,6 +839,8 @@ async function doNavigate() {
     await loadCase(parsed.recordId, token)
   } else if (parsed.objectType === "CourseOffering") {
     await loadCourseOffering(parsed.recordId, token)
+  } else if (parsed.objectType === "Term") {
+    await loadTerm(parsed.recordId, token)
   }
 }
 

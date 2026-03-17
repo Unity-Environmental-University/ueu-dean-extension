@@ -18,6 +18,23 @@ function tryMount() {
   startWatching()
   mountOverlay(root)
   mounted = true
+
+  // SF may have already routed before our pushState intercept was installed.
+  // Retry with backoff until data loads or we give up.
+  const delays = [500, 1000, 2000, 4000]
+  let attempt = 0
+  function retryIfNeeded() {
+    if (attempt >= delays.length) return
+    setTimeout(async () => {
+      const m = await import("./features")
+      if (!m.state.caseData && !m.state.canvas && !m.state.loading) {
+        m.refresh()
+      }
+      attempt++
+      retryIfNeeded()
+    }, delays[attempt])
+  }
+  retryIfNeeded()
 }
 
 tryMount()

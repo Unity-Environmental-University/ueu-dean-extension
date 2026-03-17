@@ -197,6 +197,55 @@
   gap: 1rem;
 }
 
+.ueu-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.ueu-history-card {
+  background: #f8f9fa;
+  border: 1px solid #e8eaed;
+  border-radius: 5px;
+  padding: 0.2rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ueu-history-type {
+  flex: 1;
+  font-size: 0.75rem;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ueu-history-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.ueu-history-date {
+  font-size: 0.7rem;
+  color: #aaa;
+}
+
+.ueu-case-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ueu-case-link:hover { text-decoration: underline; }
+
 .ueu-canvas-link {
   display: inline-flex;
   align-items: center;
