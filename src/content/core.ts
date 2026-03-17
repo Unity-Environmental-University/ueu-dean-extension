@@ -1,7 +1,7 @@
 /**
- * Features — reactive state driven by the SF REST API.
+ * Core — the heart of the dean's tool.
  *
- * Watches the URL for record page navigation, fetches data via API,
+ * Watches the URL for record page navigation, fetches data via SF/Canvas APIs,
  * and populates the shared state that the overlay UI reads.
  */
 
@@ -9,45 +9,9 @@ import browser from "webextension-polyfill"
 import { getRecord, parseRecordUrl, describeObject, sfQuery } from "./sfapi"
 import { getPermissions } from "./permissions"
 import { pick, diag, makeFieldAccessor, type DiagLog, type DiagEntry } from "./resolve"
+import { observeFields, observeCaseComplete } from "./observer"
 
 const CANVAS_HOST = "unity.instructure.com"
-
-function rhizomeObserve(obs: {
-  subject: string; predicate: string; object: string
-  confidence?: number; phase?: "volatile" | "fluid" | "salt"; note?: string
-}) {
-  // Fire-and-forget — never blocks the UI
-  browser.runtime.sendMessage({ type: "rhizome-observe", ...obs }).catch(() => {})
-}
-
-/**
- * Emit field-resolution observations for any record type.
- * Reads structured DiagEntry fields — no string parsing.
- */
-function emitFieldObservations(objectType: string, diagnostics: DiagEntry[]) {
-  for (const d of diagnostics) {
-    if (d.type === "field-hit" && d.field) {
-      rhizomeObserve({
-        subject: `sf-schema:unity/${objectType}`,
-        predicate: "field-resolved",
-        object: d.field,
-        confidence: 1.0,
-        phase: "fluid",
-        note: d.label ? `label="${d.label}"` : undefined,
-      })
-    }
-    if (d.type === "pick-hit" && d.field) {
-      rhizomeObserve({
-        subject: `sf-schema:unity/${objectType}`,
-        predicate: "field-resolved",
-        object: d.field,
-        confidence: 0.7,
-        phase: "fluid",
-        note: "pick-fallback",
-      })
-    }
-  }
-}
 
 async function canvasFetch<T>(path: string): Promise<T> {
   const result = await browser.runtime.sendMessage({
@@ -192,7 +156,7 @@ async function resolveCopToCoId(copId: string): Promise<{
     }
     diag(log, "cop-resolved", `coId=${result.coId ?? "null"} preferredName=${result.preferredName ?? "null"} unityId=${result.unityId ?? "null"} accountId=${result.accountId ?? "null"}`)
     state.diagnostics.push(...log)
-    emitFieldObservations("CourseOfferingParticipant", log)
+    observeFields("CourseOfferingParticipant", log)
     return result
   } catch (e) {
     diag(log, "cop-error", String(e))
@@ -211,7 +175,7 @@ async function resolveFromAccount(accountId: string) {
     const genderIdentity = pick(log, account, "Gender_Identity__c", "GenderIdentity__c", "Gender__c", "Pronouns__c", "Preferred_Pronouns__c")
     diag(log, "account-resolved", `canvasUserId=${canvasUserId ?? "null"} genderIdentity=${genderIdentity ?? "null"}`)
     state.diagnostics.push(...log)
-    emitFieldObservations("Account", log)
+    observeFields("Account", log)
     if (state.canvas) {
       if (canvasUserId && !state.canvas.studentId) {
         state.canvas.studentId = canvasUserId
@@ -284,7 +248,7 @@ async function resolveStudentFromContact(contactId: string, fallbackEmail: strin
       state.canvas.studentId = canvasUserId
       state.canvas.studentName = pick(log, contact, "Name") ?? null
       state.diagnostics.push(...log)
-      emitFieldObservations("Contact", log)
+      observeFields("Contact", log)
       state.loadingStudent = false
       state.notify()
       return
@@ -299,7 +263,7 @@ async function resolveStudentFromContact(contactId: string, fallbackEmail: strin
       state.notify()
     }
     state.diagnostics.push(...log)
-    emitFieldObservations("Contact", log)
+    observeFields("Contact", log)
   } catch (e) {
     console.warn("[UEU] Failed to fetch Contact:", e)
     if (fallbackEmail) {
@@ -411,7 +375,7 @@ async function resolveCanvasFromCo(coId: string, onName: (name: string) => void)
 
     diag(log, "canvas-id-resolved", canvasId)
     state.diagnostics.push(...log)
-    emitFieldObservations("CourseOffering", log)
+    observeFields("CourseOffering", log)
     state.canvas = { courseId: canvasId, url: `https://unity.instructure.com/courses/${canvasId}`, enrollmentUrl: null, studentId: null, studentName: null }
     state.notify()
     return canvasId
@@ -655,23 +619,13 @@ async function loadCase(recordId: string, token: number) {
       diag(state.diagnostics, "prior-cases-skip", "no contactId available — skipping SOQL query")
     }
 
-    // Emit field-resolution observations for Case
-    emitFieldObservations("Case", state.diagnostics)
-
-    // Emit sis_user_id success signal
-    if (state.diagnostics.some(d => d.type === "student-lookup-path" && d.detail.startsWith("sis_user_id resolved:"))) {
-      rhizomeObserve({ subject: "sf-schema:unity/COP", predicate: "sis-lookup-succeeded", object: "canvas", confidence: 1.0, phase: "fluid" })
-    }
-
-    // Emit case-type observation (no student identity — just the pattern)
+    // Observe — feed the graph
+    observeFields("Case", state.diagnostics)
     if (state.caseData) {
-      rhizomeObserve({
-        subject: `sf-case-type:${state.caseData.type}`,
-        predicate: "observed-in",
-        object: `sf-org:unity`,
-        confidence: 0.8,
-        phase: "fluid",
-        note: state.caseData.subType ?? undefined,
+      observeCaseComplete({
+        caseType: state.caseData.type,
+        caseSubType: state.caseData.subType,
+        diagnostics: state.diagnostics,
       })
     }
   } catch (e) {
@@ -707,7 +661,7 @@ async function loadCourseOffering(recordId: string, token: number) {
     state.diagnostics.push(...coLog)
     state.loading = false
     state.notify()
-    emitFieldObservations("CourseOffering", coLog)
+    observeFields("CourseOffering", coLog)
   } catch (e) {
     if (stale(token)) return
     state.loading = false
@@ -734,7 +688,7 @@ async function loadTerm(recordId: string, token: number) {
     state.diagnostics.push(...termLog)
     state.loading = false
     state.notify()
-    emitFieldObservations("Term", termLog)
+    observeFields("Term", termLog)
   } catch (e) {
     if (stale(token)) return
     state.loading = false

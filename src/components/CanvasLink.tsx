@@ -7,7 +7,7 @@
 
 import { createSignal, onCleanup, Show, createEffect, For } from "solid-js"
 import browser from "webextension-polyfill"
-import { state, refresh } from "../content/features"
+import { state, refresh } from "../content/core"
 import { getSettings } from "../content/permissions"
 
 const INCIDENT_LABELS: Record<string, string> = {

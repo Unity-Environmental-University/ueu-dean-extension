@@ -5,7 +5,7 @@
  * and mounts the overlay UI.
  */
 
-import { startWatching } from "./features"
+import { startWatching } from "./core"
 import { mountOverlay } from "./overlay"
 
 let mounted = false
@@ -26,7 +26,7 @@ function tryMount() {
   function retryIfNeeded() {
     if (attempt >= delays.length) return
     setTimeout(async () => {
-      const m = await import("./features")
+      const m = await import("./core")
       if (!m.state.caseData && !m.state.canvas && !m.state.loading) {
         m.refresh()
       }

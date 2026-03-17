@@ -8,7 +8,7 @@ import { createSignal, createResource, Show, onCleanup } from "solid-js"
 import browser from "webextension-polyfill"
 import { CanvasLink } from "./CanvasLink"
 import { getPermissions, setPermissions, revokeAll, getSettings, saveSettings } from "../content/permissions"
-import { refresh, state } from "../content/features"
+import { refresh, state } from "../content/core"
 
 export function Overlay() {
   const [open, setOpen] = createSignal(false)
