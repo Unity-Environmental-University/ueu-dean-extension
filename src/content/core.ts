@@ -89,6 +89,13 @@ export const state = {
     studentPronouns: string | null
   } | null,
 
+  /** Instructor info (resolved from case, looked up in Canvas) */
+  instructor: null as {
+    name: string | null
+    email: string | null
+    canvasId: string | null
+  } | null,
+
   /** Raw Contact record for debugging */
   contactRaw: null as Record<string, unknown> | null,
 
@@ -326,6 +333,25 @@ async function lookupCanvasStudentByEmail(email: string) {
   state.notify()
 }
 
+/** Look up instructor in Canvas by email */
+async function resolveInstructor(name: string | null, email: string | null) {
+  state.instructor = { name, email, canvasId: null }
+  if (!email) { state.notify(); return }
+  try {
+    const users = await canvasFetch<Array<{ id: number; name: string }>>(
+      `/api/v1/users?search_term=${encodeURIComponent(email)}&per_page=1`
+    )
+    if (users.length > 0) {
+      state.instructor.canvasId = String(users[0].id)
+      if (!name) state.instructor.name = users[0].name
+    }
+    diag(state.diagnostics, "instructor-lookup", `email=${email} canvasId=${state.instructor.canvasId ?? "null"}`)
+  } catch (e) {
+    diag(state.diagnostics, "instructor-lookup", `failed: ${e}`)
+  }
+  state.notify()
+}
+
 /**
  * Resolve Canvas course from a CO, then resolve the student.
  * Centralises the identical dishonesty / grade-appeal sequence.
@@ -485,6 +511,7 @@ async function loadCase(recordId: string, token: number) {
   state.loadingPriorCases = false
   state.dishonesty = null
   state.gradeAppeal = null
+  state.instructor = null
   state.canvas = null  // clears studentId/studentName immediately so stale data never shows
   state.copRaw = null
   state.contactRaw = null
@@ -605,6 +632,14 @@ async function loadCase(recordId: string, token: number) {
     }
 
     if (stale(token)) return
+
+    // Resolve instructor in Canvas (fire and forget — non-blocking)
+    const instructorName = state.dishonesty?.instructor ?? state.gradeAppeal?.instructor ?? null
+    const instructorEmail = state.dishonesty?.instructorEmail ?? state.gradeAppeal?.instructorEmail ?? null
+    if (instructorName || instructorEmail) {
+      resolveInstructor(instructorName, instructorEmail)
+    }
+
     state.loading = false
     state.notify()
 
@@ -716,6 +751,7 @@ async function doNavigate() {
       state.caseData = null
       state.dishonesty = null
       state.gradeAppeal = null
+      state.instructor = null
       state.canvas = null
       state.loading = false
       state.error = null

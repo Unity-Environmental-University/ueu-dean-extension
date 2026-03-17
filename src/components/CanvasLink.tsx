@@ -36,6 +36,7 @@ export function CanvasLink() {
   const page = () => { version(); return state.page }
   const priorCases = () => { version(); return state.priorCases }
   const loadingPriorCases = () => { version(); return state.loadingPriorCases }
+  const instructor = () => { version(); return state.instructor }
   const anyError = () => error() || courseOfferingError() || (studentError() && studentError() !== "canvas-session-required")
 
   const [reportStatus, setReportStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
@@ -255,6 +256,33 @@ export function CanvasLink() {
                 </a>
               </div>
             </Show>
+          </article>
+        )}
+      </Show>
+
+      {/* Instructor */}
+      <Show when={instructor()}>
+        {i => (
+          <article>
+            <h3 class="ueu-label">Instructor</h3>
+            <p class="ueu-muted" style={{"margin-bottom": "0.4rem"}}>{i().name ?? i().email}</p>
+            <div class="ueu-canvas-links">
+              <Show when={i().canvasId}>
+                <a href={`https://unity.instructure.com/users/${i().canvasId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                  Profile &rarr;
+                </a>
+              </Show>
+              <Show when={i().canvasId && canvas()}>
+                <a href={`https://unity.instructure.com/courses/${canvas()!.courseId}/users/${i().canvasId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                  In Course &rarr;
+                </a>
+              </Show>
+              <Show when={i().email}>
+                <a href={`mailto:${i().email}`} class="ueu-canvas-link" style={{"font-size": "0.85rem"}}>
+                  Email &rarr;
+                </a>
+              </Show>
+            </div>
           </article>
         )}
       </Show>
