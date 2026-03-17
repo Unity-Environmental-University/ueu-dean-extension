@@ -8,6 +8,7 @@
 import browser from "webextension-polyfill"
 import { getRecord, parseRecordUrl, describeObject, sfQuery } from "./sfapi"
 import { getPermissions } from "./permissions"
+import { pick, diag, makeFieldAccessor, type DiagLog, type DiagEntry } from "./resolve"
 
 const CANVAS_HOST = "unity.instructure.com"
 
@@ -21,37 +22,29 @@ function rhizomeObserve(obs: {
 
 /**
  * Emit field-resolution observations for any record type.
- * Pulls field-hit entries from a diagnostics array and writes them to the graph.
- * Accumulates over time to reveal which SF API field names are live in this org.
+ * Reads structured DiagEntry fields — no string parsing.
  */
-function emitFieldObservations(objectType: string, diagnostics: Array<{ type: string; detail: string }>) {
+function emitFieldObservations(objectType: string, diagnostics: DiagEntry[]) {
   for (const d of diagnostics) {
-    if (d.type === "field-hit") {
-      const match = d.detail.match(/"(.+)" → (.+)/)
-      if (match) {
-        rhizomeObserve({
-          subject: `sf-schema:unity/${objectType}`,
-          predicate: "field-resolved",
-          object: match[2],
-          confidence: 1.0,
-          phase: "fluid",
-          note: `label="${match[1]}"`,
-        })
-      }
+    if (d.type === "field-hit" && d.field) {
+      rhizomeObserve({
+        subject: `sf-schema:unity/${objectType}`,
+        predicate: "field-resolved",
+        object: d.field,
+        confidence: 1.0,
+        phase: "fluid",
+        note: d.label ? `label="${d.label}"` : undefined,
+      })
     }
-    if (d.type === "pick-hit") {
-      // pick() variant matched — lower confidence than describe-based
-      const match = d.detail.match(/key:(.+)/)
-      if (match) {
-        rhizomeObserve({
-          subject: `sf-schema:unity/${objectType}`,
-          predicate: "field-resolved",
-          object: match[1],
-          confidence: 0.7,
-          phase: "fluid",
-          note: "pick-fallback",
-        })
-      }
+    if (d.type === "pick-hit" && d.field) {
+      rhizomeObserve({
+        subject: `sf-schema:unity/${objectType}`,
+        predicate: "field-resolved",
+        object: d.field,
+        confidence: 0.7,
+        phase: "fluid",
+        note: "pick-fallback",
+      })
     }
   }
 }
@@ -147,7 +140,7 @@ export const state = {
   copRaw: null as Record<string, unknown> | null,
 
   /** Diagnostic log — field misses and resolution path for this page load */
-  diagnostics: [] as Array<{ type: string; detail: string }>,
+  diagnostics: [] as DiagEntry[],
 
   notify() {
     this.listeners.forEach(fn => fn())
@@ -175,48 +168,6 @@ function stale(token: number): boolean {
   return token !== navToken
 }
 
-type DiagLog = Array<{ type: string; detail: string }>
-
-/** Try multiple field name variants — SF custom fields are unpredictable */
-function pick(log: DiagLog, record: Record<string, unknown>, ...keys: string[]): string | null {
-  for (const k of keys) {
-    const v = record[k]
-    if (v != null && v !== "") {
-      log.push({ type: "pick-hit", detail: `key:${k}` })
-      return String(v)
-    }
-  }
-  log.push({ type: "pick-miss", detail: `tried: ${keys.join(", ")}` })
-  return null
-}
-
-function diag(log: DiagLog, type: string, detail: string) {
-  log.push({ type, detail })
-}
-
-/**
- * Build a field accessor for a described SObject record.
- * Looks up by human label first (exact, from describe), falls back to pick() variants.
- * Logs what it found and how.
- */
-function makeFieldAccessor(log: DiagLog, record: Record<string, unknown>, fieldMap: Map<string, { name: string }> | null) {
-  return function get(label: string, ...fallbackKeys: string[]): string | null {
-    if (fieldMap) {
-      const info = fieldMap.get(label.toLowerCase())
-      if (info) {
-        const v = record[info.name]
-        if (v != null && v !== "") {
-          diag(log, "field-hit", `"${label}" → ${info.name}`)
-          return String(v)
-        }
-        diag(log, "field-miss", `"${label}" → ${info.name} (present but empty)`)
-      } else {
-        diag(log, "field-unknown", `"${label}" not in describe`)
-      }
-    }
-    return pick(log, record, ...fallbackKeys)
-  }
-}
 
 /** Follow Course Offering Participant → return coId and student info (no side effects) */
 async function resolveCopToCoId(copId: string): Promise<{
