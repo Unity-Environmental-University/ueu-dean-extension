@@ -37,6 +37,7 @@ export type DiagLog = DiagEntry[]
 /** Try multiple field name variants — SF custom fields are unpredictable */
 export function pick(log: DiagLog, record: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) {
+    if (!Object.hasOwn(record, k)) continue
     const v = record[k]
     if (v != null && v !== "") {
       log.push({ type: "pick-hit", detail: `key:${k}`, field: k })
