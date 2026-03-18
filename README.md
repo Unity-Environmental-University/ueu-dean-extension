@@ -15,12 +15,12 @@ Download the latest release zip, unzip it, and follow the [install guide](https:
 ## For developers
 
 ```bash
-pnpm install
-pnpm dev       # development build with watch
-pnpm build     # production build → dist/
+npm install
+npm run dev       # development build with watch
+npm run build     # production build → dist/chrome/
 ```
 
-Load the `dist/` folder as an unpacked extension in `chrome://extensions` with Developer mode on.
+Load the `dist/chrome/` folder as an unpacked extension in `chrome://extensions` with Developer mode on.
 
 Releases are tagged on `main`. To cut a new release, tag and push:
 

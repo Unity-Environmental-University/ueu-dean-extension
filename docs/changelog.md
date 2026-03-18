@@ -24,7 +24,7 @@
 
 ---
 
-## 2026-03-12 (v0.3)
+## 2026-03-12 (v0.1.2)
 
 ### Fixed
 - **The extension now reliably recognises Case pages.** An intermittent bug caused it to occasionally miss that you'd navigated to a case and show nothing. This is fixed.
@@ -35,7 +35,7 @@
 
 ---
 
-## 2026-03-09 (v0.2)
+## 2026-03-09 (v0.1.1)
 
 ### New
 
