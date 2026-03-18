@@ -147,7 +147,6 @@ async function resolveCopToCoId(copId: string): Promise<{
   contactId: string | null
   accountId: string | null
   preferredName: string | null
-  unityId: string | null
 }> {
   const log: DiagLog = []
   try {
@@ -159,16 +158,15 @@ async function resolveCopToCoId(copId: string): Promise<{
       contactId: pick(log, cop, "ParticipantContactId", "hed__Contact__c", "ContactId", "Contact__c"),
       accountId: pick(log, cop, "ParticipantAccountId", "AccountId"),
       preferredName: pick(log, cop, "Preferred_Student_Name__c", "PreferredName__c"),
-      unityId: pick(log, cop, "Unity_ID__c", "UnityId__c"),
     }
-    diag(log, "cop-resolved", `coId=${result.coId ?? "null"} preferredName=${result.preferredName ?? "null"} unityId=${result.unityId ?? "null"} accountId=${result.accountId ?? "null"}`)
+    diag(log, "cop-resolved", `coId=${result.coId ?? "null"} preferredName=${result.preferredName ?? "null"} accountId=${result.accountId ?? "null"}`)
     state.diagnostics.push(...log)
     observeFields("CourseOfferingParticipant", log)
     return result
   } catch (e) {
     diag(log, "cop-error", String(e))
     state.diagnostics.push(...log)
-    return { coId: null, enrollmentId: null, contactId: null, accountId: null, preferredName: null, unityId: null }
+    return { coId: null, enrollmentId: null, contactId: null, accountId: null, preferredName: null }
   }
 }
 
@@ -178,7 +176,7 @@ async function resolveFromAccount(accountId: string) {
   try {
     const account = await getRecord<Record<string, unknown>>("Account", accountId)
     state.contactRaw = account  // reuse slot for display in Dev
-    const canvasUserId = pick(log, account, "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c", "Canvas_User__c")
+    const canvasUserId = pick(log, account, "Canvas_User_ID__pc", "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c", "Canvas_User__c")
     const genderIdentity = pick(log, account, "Gender_Identity__c", "GenderIdentity__c", "Gender__c", "Pronouns__c", "Preferred_Pronouns__c")
     diag(log, "account-resolved", `canvasUserId=${canvasUserId ?? "null"} genderIdentity=${genderIdentity ?? "null"}`)
     state.diagnostics.push(...log)
@@ -287,16 +285,44 @@ function isAuthError(e: unknown): boolean {
   return e instanceof Error && e.message.includes(" 401:")
 }
 
-/** Search Canvas globally by email — not course-scoped */
+/** Search Canvas for student by email — course-scoped first, global fallback */
 async function lookupCanvasStudentByEmail(email: string) {
+  // 1. Course-scoped search (works without admin scope)
+  const courseId = state.canvas?.courseId
+  if (courseId) {
+    try {
+      const users = await canvasFetch<Array<{ id: number; name: string }>>(
+        `/api/v1/courses/${courseId}/search_users?search_term=${encodeURIComponent(email)}&per_page=1`
+      )
+      if (users.length > 0 && state.canvas) {
+        state.canvas.studentId = String(users[0].id)
+        state.canvas.studentName = users[0].name
+        diag(state.diagnostics, "student-email-lookup", `course-scoped: found ${users[0].id}`)
+        state.loadingStudent = false
+        state.notify()
+        return
+      }
+      diag(state.diagnostics, "student-email-lookup", `course-scoped: no match in course ${courseId}`)
+    } catch (e) {
+      if (isAuthError(e)) {
+        state.loadingStudent = false
+        state.studentError = "canvas-session-required"
+        state.notify()
+        return
+      }
+      diag(state.diagnostics, "student-email-lookup", `course-scoped failed: ${e}`)
+    }
+  }
+
+  // 2. Global search fallback (needs admin scope — may 404)
   try {
-    // Try global user search first (requires admin scope but worth trying)
     const users = await canvasFetch<Array<{ id: number; name: string }>>(
       `/api/v1/users?search_term=${encodeURIComponent(email)}&per_page=1`
     )
     if (users.length > 0 && state.canvas) {
       state.canvas.studentId = String(users[0].id)
       state.canvas.studentName = users[0].name
+      diag(state.diagnostics, "student-email-lookup", `global: found ${users[0].id}`)
       state.loadingStudent = false
       state.notify()
       return
@@ -308,47 +334,81 @@ async function lookupCanvasStudentByEmail(email: string) {
       state.notify()
       return
     }
-    // Global search may not be permitted — fall through to course-scoped
+    diag(state.diagnostics, "student-email-lookup", `global failed: ${e}`)
   }
 
-  // Fall back to course-scoped search
-  const courseId = state.canvas?.courseId
-  if (courseId) {
-    try {
-      const users = await canvasFetch<Array<{ id: number; name: string }>>(
-        `/api/v1/courses/${courseId}/search_users?search_term=${encodeURIComponent(email)}&per_page=1`
-      )
-      if (users.length > 0 && state.canvas) {
-        state.canvas.studentId = String(users[0].id)
-        state.canvas.studentName = users[0].name
-      } else {
-        state.studentError = "Student not found in Canvas"
-      }
-    } catch (e) {
-      state.studentError = isAuthError(e) ? "canvas-session-required" : "Could not look up student in Canvas"
-    }
-  }
-
+  state.studentError = "Student not found in Canvas"
   state.loadingStudent = false
   state.notify()
 }
 
-/** Look up instructor in Canvas by email */
-async function resolveInstructor(name: string | null, email: string | null) {
+/** Resolve instructor — try SF Account (Canvas_User_ID__pc), then course-scoped Canvas search */
+async function resolveInstructor(name: string | null, email: string | null, instructorFieldValue: string | null) {
   state.instructor = { name, email, canvasId: null }
-  if (!email) { state.notify(); return }
-  try {
-    const users = await canvasFetch<Array<{ id: number; name: string }>>(
-      `/api/v1/users?search_term=${encodeURIComponent(email)}&per_page=1`
-    )
-    if (users.length > 0) {
-      state.instructor.canvasId = String(users[0].id)
-      if (!name) state.instructor.name = users[0].name
+  state.notify()
+
+  // 1. If the Instructor__c field is a lookup (SF ID), fetch that Account for Canvas_User_ID__pc
+  if (instructorFieldValue && /^[a-zA-Z0-9]{15,18}$/.test(instructorFieldValue)) {
+    const log: DiagLog = []
+    try {
+      const account = await getRecord<Record<string, unknown>>("Account", instructorFieldValue)
+      const canvasUserId = pick(log, account, "Canvas_User_ID__pc", "Canvas_User_ID__c")
+      const accountName = pick(log, account, "Name")
+      state.diagnostics.push(...log)
+      if (canvasUserId) {
+        state.instructor.canvasId = canvasUserId
+        if (accountName) state.instructor.name = accountName
+        diag(state.diagnostics, "instructor-lookup", `account Canvas_User_ID__pc=${canvasUserId} name=${accountName ?? "null"}`)
+        state.notify()
+        return
+      }
+      // Account exists but no Canvas ID — use name if we got it
+      if (accountName && !name) state.instructor.name = accountName
+      diag(state.diagnostics, "instructor-lookup", `account found but no Canvas user ID`)
+    } catch (e) {
+      diag(state.diagnostics, "instructor-lookup", `account fetch failed: ${e}`)
+      // May not be an Account — could be a Contact. Try that.
+      try {
+        const contact = await getRecord<Record<string, unknown>>("Contact", instructorFieldValue)
+        const canvasUserId = pick(log, contact, "Canvas_User_ID__c")
+        const contactName = pick(log, contact, "Name")
+        state.diagnostics.push(...log)
+        if (canvasUserId) {
+          state.instructor.canvasId = canvasUserId
+          if (contactName) state.instructor.name = contactName
+          diag(state.diagnostics, "instructor-lookup", `contact Canvas_User_ID__c=${canvasUserId}`)
+          state.notify()
+          return
+        }
+        if (contactName && !name) state.instructor.name = contactName
+      } catch {
+        diag(state.diagnostics, "instructor-lookup", `contact fetch also failed`)
+      }
     }
-    diag(state.diagnostics, "instructor-lookup", `email=${email} canvasId=${state.instructor.canvasId ?? "null"}`)
-  } catch (e) {
-    diag(state.diagnostics, "instructor-lookup", `failed: ${e}`)
   }
+
+  if (!email) { state.notify(); return }
+
+  // 2. Course-scoped Canvas search by email
+  const courseId = state.canvas?.courseId
+  if (courseId) {
+    try {
+      const users = await canvasFetch<Array<{ id: number; name: string }>>(
+        `/api/v1/courses/${courseId}/search_users?search_term=${encodeURIComponent(email)}&enrollment_type[]=teacher&enrollment_type[]=ta&per_page=5`
+      )
+      if (users.length > 0) {
+        state.instructor.canvasId = String(users[0].id)
+        if (!state.instructor.name || state.instructor.name === name) state.instructor.name = users[0].name
+        diag(state.diagnostics, "instructor-lookup", `course-scoped email=${email} canvasId=${state.instructor.canvasId}`)
+        state.notify()
+        return
+      }
+      diag(state.diagnostics, "instructor-lookup", `course-scoped: no match for ${email}`)
+    } catch (e) {
+      diag(state.diagnostics, "instructor-lookup", `course-scoped failed: ${e}`)
+    }
+  }
+
   state.notify()
 }
 
@@ -359,8 +419,9 @@ async function resolveInstructor(name: string | null, email: string | null) {
 async function resolveCanvasAndStudent(opts: {
   coId: string
   preferredName: string | null
-  unityId: string | null
   accountId: string | null
+  contactId: string | null
+  enrollmentId: string | null
   email: string | null
   onName: (name: string) => void
   token: number
@@ -369,8 +430,9 @@ async function resolveCanvasAndStudent(opts: {
   if (canvasId && !stale(opts.token)) {
     await resolveStudent({
       preferredName: opts.preferredName,
-      unityId: opts.unityId,
       accountId: opts.accountId,
+      contactId: opts.contactId,
+      enrollmentId: opts.enrollmentId,
       email: opts.email,
     })
   }
@@ -414,11 +476,11 @@ async function resolveCanvasFromCo(coId: string, onName: (name: string) => void)
   }
 }
 
-/** Resolve student — prefers COP data (name + unityId) over Canvas API lookups */
+/** Resolve student — cascading fallback: enrollment → contact → email */
 async function resolveStudent(opts: {
   preferredName?: string | null
-  unityId?: string | null
   accountId?: string | null
+  contactId?: string | null
   enrollmentId?: string | null
   email?: string | null
 }) {
@@ -432,37 +494,39 @@ async function resolveStudent(opts: {
     diag(state.diagnostics, "student-lookup-path", `cop-name:${opts.preferredName}`)
   }
 
-  // Fetch Canvas user ID and gender identity from Person Account in background
+  // 1. Person Account — Canvas_User_ID__pc is the authoritative source
   if (opts.accountId) {
-    resolveFromAccount(opts.accountId)
+    await resolveFromAccount(opts.accountId)
+    if (state.canvas?.studentId) {
+      state.loadingStudent = false
+      state.notify()
+      return
+    }
   }
 
-  // Get Canvas user ID via sis_user_id (Unity ID) for grade/profile/masquerade links
-  if (opts.unityId) {
-    diag(state.diagnostics, "student-lookup-path", `sis_user_id:${opts.unityId}`)
-    try {
-      const user = await canvasFetch<{ id: number; name: string }>(
-        `/api/v1/users/sis_user_id:${opts.unityId}`
-      )
-      if (user?.id && state.canvas) {
-        state.canvas.studentId = String(user.id)
-        if (!opts.preferredName) state.canvas.studentName = user.name
-        diag(state.diagnostics, "student-lookup-path", `sis_user_id resolved: ${user.id}`)
-      }
-    } catch (e) {
-      diag(state.diagnostics, "sis-lookup", `failed: ${e}`)
-      if (isAuthError(e)) {
-        state.studentError = "canvas-session-required"
-        state.loadingStudent = false
-        state.notify()
-        return
-      }
-    }
-  } else if (opts.email) {
+  // 2. Try Canvas enrollment ID (if we have courseId)
+  if (!state.canvas?.studentId && opts.enrollmentId) {
+    diag(state.diagnostics, "student-lookup-path", `enrollment:${opts.enrollmentId}`)
+    await resolveStudentFromEnrollment(opts.enrollmentId, opts.email ?? null)
+    if (state.canvas?.studentId) return
+  }
+
+  // 3. Try SF Contact → Canvas user ID or email lookup
+  if (!state.canvas?.studentId && opts.contactId) {
+    diag(state.diagnostics, "student-lookup-path", `contact:${opts.contactId}`)
+    await resolveStudentFromContact(opts.contactId, opts.email ?? null)
+    if (state.canvas?.studentId) return
+  }
+
+  // 4. Try email search directly
+  if (!state.canvas?.studentId && opts.email) {
     diag(state.diagnostics, "student-lookup-path", `email:${opts.email}`)
     await lookupCanvasStudentByEmail(opts.email)
     return
-  } else if (!opts.preferredName) {
+  }
+
+  // Nothing worked
+  if (!state.canvas?.studentId && !opts.preferredName) {
     state.studentError = "No student identifier available"
     diag(state.diagnostics, "student-lookup-path", "no identifier available")
   }
@@ -551,8 +615,8 @@ async function loadCase(recordId: string, token: number) {
     let copCoId: string | null = null
     let copContactId: string | null = null
     let copAccountId: string | null = null
+    let copEnrollmentId: string | null = null
     let copPreferredName: string | null = null
-    let copUnityId: string | null = null
 
     if (copId) {
       const cop = await resolveCopToCoId(copId)
@@ -560,8 +624,8 @@ async function loadCase(recordId: string, token: number) {
       copCoId = cop.coId
       copContactId = cop.contactId
       copAccountId = cop.accountId
+      copEnrollmentId = cop.enrollmentId
       copPreferredName = cop.preferredName
-      copUnityId = cop.unityId
     }
 
     // Resolve the course offering ID — prefer COP's link, fall back to direct case field
@@ -587,8 +651,10 @@ async function loadCase(recordId: string, token: number) {
         await resolveCanvasAndStudent({
           coId: resolvedCoId,
           preferredName: copPreferredName,
-          unityId: copUnityId,
+
           accountId: copAccountId,
+          contactId: copContactId,
+          enrollmentId: copEnrollmentId,
           email: state.caseData?.contactEmail ?? null,
           onName: (name) => { if (!stale(token) && state.dishonesty) state.dishonesty.courseOfferingName = name },
           token,
@@ -622,8 +688,10 @@ async function loadCase(recordId: string, token: number) {
         await resolveCanvasAndStudent({
           coId: resolvedCoId,
           preferredName: copPreferredName,
-          unityId: copUnityId,
+
           accountId: copAccountId,
+          contactId: copContactId,
+          enrollmentId: copEnrollmentId,
           email: state.caseData?.contactEmail ?? null,
           onName: (name) => { if (!stale(token) && state.gradeAppeal) state.gradeAppeal.courseOfferingName = name },
           token,
@@ -633,11 +701,29 @@ async function loadCase(recordId: string, token: number) {
 
     if (stale(token)) return
 
-    // Resolve instructor in Canvas (fire and forget — non-blocking)
+    // Generic case: has a course offering but didn't match dishonesty or grade appeal
+    // Still resolve Canvas + student so links work for any case type
+    if (resolvedCoId && !state.canvas) {
+      await resolveCanvasAndStudent({
+        coId: resolvedCoId,
+        preferredName: copPreferredName,
+        accountId: copAccountId,
+        contactId: copContactId,
+        enrollmentId: copEnrollmentId,
+        email: state.caseData?.contactEmail ?? null,
+        onName: () => {},
+        token,
+      })
+    }
+
+    if (stale(token)) return
+
+    // Resolve instructor — try SF Account lookup first, then Canvas search
     const instructorName = state.dishonesty?.instructor ?? state.gradeAppeal?.instructor ?? null
     const instructorEmail = state.dishonesty?.instructorEmail ?? state.gradeAppeal?.instructorEmail ?? null
-    if (instructorName || instructorEmail) {
-      resolveInstructor(instructorName, instructorEmail)
+    const instructorRaw = pick(state.diagnostics, rec, "Instructor__c", "Instructor_Name__c")
+    if (instructorName || instructorEmail || instructorRaw) {
+      resolveInstructor(instructorName, instructorEmail, instructorRaw)
     }
 
     state.loading = false

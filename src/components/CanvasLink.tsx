@@ -5,10 +5,10 @@
  * All data comes from SF REST API — no DOM scraping.
  */
 
-import { createSignal, onCleanup, Show, createEffect, For } from "solid-js"
+import { createSignal, onCleanup, Show, createEffect, For, createMemo } from "solid-js"
 import browser from "webextension-polyfill"
 import { state, refresh } from "../content/core"
-import { getSettings } from "../content/permissions"
+import { getSettings, saveSettings } from "../content/permissions"
 
 const INCIDENT_LABELS: Record<string, string> = {
   plagiarism: "Plagiarism",
@@ -17,7 +17,7 @@ const INCIDENT_LABELS: Record<string, string> = {
   other: "Other",
 }
 
-export function CanvasLink() {
+export function CanvasLink(props: { onDrawerToggle?: (open: boolean) => void }) {
   const [version, setVersion] = createSignal(0)
   const bump = () => setVersion(v => v + 1)
   state.listeners.add(bump)
@@ -38,6 +38,58 @@ export function CanvasLink() {
   const loadingPriorCases = () => { version(); return state.loadingPriorCases }
   const instructor = () => { version(); return state.instructor }
   const anyError = () => error() || courseOfferingError() || (studentError() && studentError() !== "canvas-session-required")
+
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = createSignal(false)
+  const [subTypeFilter, setSubTypeFilter] = createSignal("")
+
+  // Load sticky filter, then auto-select current case's subtype if no sticky value
+  getSettings().then(s => {
+    if (s.historySubTypeFilter) {
+      setSubTypeFilter(s.historySubTypeFilter)
+    }
+  })
+
+  // Auto-select current case's subtype when case data loads (only if no sticky override)
+  createEffect(() => {
+    const sub = caseData()?.subType
+    if (sub && !subTypeFilter()) {
+      setSubTypeFilter(sub)
+    }
+  })
+
+  function toggleDrawer() {
+    const next = !drawerOpen()
+    setDrawerOpen(next)
+    props.onDrawerToggle?.(next)
+  }
+
+  function setFilter(value: string) {
+    setSubTypeFilter(value)
+    saveSettings({ historySubTypeFilter: value })
+  }
+
+  // Unique subtypes from prior cases for filter chips
+  const subTypes = createMemo(() => {
+    const cases = priorCases()
+    if (!cases) return []
+    const set = new Set<string>()
+    for (const c of cases) {
+      if (c.subType) set.add(c.subType)
+    }
+    // Also include current case's subtype
+    const current = caseData()?.subType
+    if (current) set.add(current)
+    return [...set].sort()
+  })
+
+  const filteredCases = createMemo(() => {
+    const cases = priorCases()
+    if (!cases) return null
+    const filter = subTypeFilter()
+    if (!filter) return cases
+    return cases.filter(c => c.subType === filter)
+  })
 
   const [reportStatus, setReportStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
 
@@ -111,22 +163,64 @@ export function CanvasLink() {
         )}
       </Show>
 
-      {/* Prior cases — always visible once case data is loaded */}
+      {/* Prior cases — drawer toggle */}
       <Show when={caseData()}>
         <article>
-          <h3 class="ueu-label">Student History</h3>
+          <button class="ueu-history-toggle" onClick={toggleDrawer}>
+            <span class="ueu-label" style={{"margin": "0"}}>Student History</span>
+            <Show when={priorCases() !== null}>
+              <span class="ueu-history-count">{priorCases()!.length}</span>
+            </Show>
+            <Show when={loadingPriorCases()}>
+              <span class="ueu-history-count" style={{"color": "#888"}}>…</span>
+            </Show>
+            <span class="ueu-drawer-arrow" classList={{"ueu-drawer-arrow-open": drawerOpen()}}>&rsaquo;</span>
+          </button>
+        </article>
+      </Show>
+
+      {/* Prior cases drawer */}
+      <Show when={drawerOpen()}>
+        <div class="ueu-drawer">
+          <header class="ueu-drawer-header">
+            <h3 class="ueu-label" style={{"margin": "0"}}>Student History</h3>
+            <button class="ueu-drawer-close" onClick={() => { setDrawerOpen(false); props.onDrawerToggle?.(false) }}>&times;</button>
+          </header>
+
+          {/* Subtype filter chips */}
+          <Show when={subTypes().length > 0}>
+            <div class="ueu-filter-chips">
+              <button
+                class="ueu-chip"
+                classList={{"ueu-chip-active": subTypeFilter() === ""}}
+                onClick={() => setFilter("")}
+              >All</button>
+              <For each={subTypes()}>
+                {st => (
+                  <button
+                    class="ueu-chip"
+                    classList={{"ueu-chip-active": subTypeFilter() === st}}
+                    onClick={() => setFilter(subTypeFilter() === st ? "" : st)}
+                  >{st}</button>
+                )}
+              </For>
+            </div>
+          </Show>
+
           <Show when={loadingPriorCases()}>
             <p class="ueu-loading">Loading&hellip;</p>
           </Show>
           <Show when={!loadingPriorCases() && priorCases() === null}>
             <p class="ueu-muted" style={{"font-size": "0.8rem", "color": "#f59e0b"}}>No contact ID — cannot load history</p>
           </Show>
-          <Show when={priorCases() !== null && priorCases()!.length === 0}>
-            <p class="ueu-muted">No prior cases.</p>
+          <Show when={filteredCases() !== null && filteredCases()!.length === 0}>
+            <p class="ueu-muted">
+              {priorCases()?.length ? "No cases match this filter." : "No prior cases."}
+            </p>
           </Show>
-          <Show when={priorCases() !== null && priorCases()!.length > 0}>
+          <Show when={filteredCases() !== null && filteredCases()!.length! > 0}>
             <ul class="ueu-history-list">
-              <For each={priorCases()!}>
+              <For each={filteredCases()!}>
                 {c => (
                   <li class="ueu-history-card">
                     <a href={`/lightning/r/Case/${c.id}/view`} target="_blank" rel="noopener noreferrer" class="ueu-case-link">{c.caseNumber}</a>
@@ -140,7 +234,7 @@ export function CanvasLink() {
               </For>
             </ul>
           </Show>
-        </article>
+        </div>
       </Show>
 
       {/* Dishonesty details */}
@@ -244,17 +338,19 @@ export function CanvasLink() {
                   {" "}<span class="ueu-pronouns">({c().studentPronouns})</span>
                 </Show>
               </p>
-              <div class="ueu-canvas-links">
-                <a href={`${c().url}/grades/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                  Grades &rarr;
-                </a>
-                <a href={`https://unity.instructure.com/users/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                  Profile &rarr;
-                </a>
-                <a href={`https://unity.instructure.com/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                  Act as &rarr;
-                </a>
-              </div>
+              <Show when={c().studentId}>
+                <div class="ueu-canvas-links">
+                  <a href={`${c().url}/grades/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                    Grades &rarr;
+                  </a>
+                  <a href={`https://unity.instructure.com/users/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                    Profile &rarr;
+                  </a>
+                  <a href={`https://unity.instructure.com/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                    Act as &rarr;
+                  </a>
+                </div>
+              </Show>
             </Show>
           </article>
         )}
@@ -266,23 +362,28 @@ export function CanvasLink() {
           <article>
             <h3 class="ueu-label">Instructor</h3>
             <p class="ueu-muted" style={{"margin-bottom": "0.4rem"}}>{i().name ?? i().email}</p>
-            <div class="ueu-canvas-links">
-              <Show when={i().canvasId}>
+            <Show when={i().canvasId}>
+              <div class="ueu-canvas-links">
                 <a href={`https://unity.instructure.com/users/${i().canvasId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                   Profile &rarr;
                 </a>
-              </Show>
-              <Show when={i().canvasId && canvas()}>
-                <a href={`https://unity.instructure.com/courses/${canvas()!.courseId}/users/${i().canvasId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                  In Course &rarr;
+                <Show when={canvas()}>
+                  <a href={`https://unity.instructure.com/courses/${canvas()!.courseId}/users/${i().canvasId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                    In Course &rarr;
+                  </a>
+                </Show>
+                <a href={`https://unity.instructure.com/users/${i().canvasId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                  Act as &rarr;
                 </a>
-              </Show>
-              <Show when={i().email}>
+              </div>
+            </Show>
+            <Show when={i().email}>
+              <div class="ueu-canvas-links" style={{"margin-top": "0.25rem"}}>
                 <a href={`mailto:${i().email}`} class="ueu-canvas-link" style={{"font-size": "0.85rem"}}>
                   Email &rarr;
                 </a>
-              </Show>
-            </div>
+              </div>
+            </Show>
           </article>
         )}
       </Show>

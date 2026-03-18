@@ -17,6 +17,7 @@ export function Overlay() {
   const [feedbackOpen, setFeedbackOpen] = createSignal(false)
   const [feedbackText, setFeedbackText] = createSignal("")
   const [feedbackStatus, setFeedbackStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
+  const [drawerOpen, setDrawerOpen] = createSignal(false)
 
   // Load permissions and settings reactively
   const [perms, { refetch: refetchPerms }] = createResource(getPermissions)
@@ -29,8 +30,6 @@ export function Overlay() {
   state.listeners.add(bump)
   onCleanup(() => state.listeners.delete(bump))
   const diagnostics = () => { version(); return state.diagnostics }
-  const priorCases = () => { version(); return state.priorCases }
-  const loadingPriorCases = () => { version(); return state.loadingPriorCases }
 
   const hasConsent = () => perms()?.sfApi ?? false
 
@@ -269,7 +268,7 @@ export function Overlay() {
 
       <Show when={open()}>
         <div class="ueu-backdrop" onClick={() => setOpen(false)}>
-          <dialog class="ueu-dialog" open onClick={e => e.stopPropagation()}>
+          <dialog class="ueu-dialog" classList={{"ueu-dialog-drawer-open": drawerOpen()}} open onClick={e => e.stopPropagation()}>
             <header>
               <h2>Dean Tools</h2>
             </header>
@@ -293,7 +292,7 @@ export function Overlay() {
               </section>
             }>
               <section>
-                <CanvasLink />
+                <CanvasLink onDrawerToggle={setDrawerOpen} />
               </section>
             </Show>
 
@@ -314,15 +313,6 @@ export function Overlay() {
                 <details class="ueu-dev-raw">
                   <summary>Contact raw fields</summary>
                   <pre class="ueu-dev-raw-pre">{JSON.stringify(state.contactRaw, null, 2)}</pre>
-                </details>
-              </Show>
-              <Show when={loadingPriorCases()}>
-                <p style={{"color": "#888", "font-size": "0.8rem", "margin": "0.25rem 0"}}>Loading prior cases…</p>
-              </Show>
-              <Show when={priorCases() !== null}>
-                <details class="ueu-dev-raw" open>
-                  <summary>Prior cases ({priorCases()?.length ?? 0})</summary>
-                  <pre class="ueu-dev-raw-pre">{JSON.stringify(priorCases(), null, 2)}</pre>
                 </details>
               </Show>
               <Show when={diagnostics().length > 0}>
@@ -390,17 +380,17 @@ export function Overlay() {
                   <button onClick={() => setOpen(false)}>Close</button>
                   <a
                     class="ueu-btn-feedback"
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      chrome.tabs.create({ url: browser.runtime.getURL("docs/index.html") })
-                    }}
+                    href={browser.runtime.getURL("docs/index.html")}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
                     Docs →
                   </a>
-                  <button class="ueu-btn-feedback" onClick={() => setFeedbackOpen(true)}>
-                    Feedback / request
-                  </button>
+                  <Show when={typeof __FEEDBACK_EMAIL__ !== "undefined" && __FEEDBACK_EMAIL__}>
+                    <button class="ueu-btn-feedback" onClick={() => setFeedbackOpen(true)}>
+                      Feedback / request
+                    </button>
+                  </Show>
                 </div>
               }>
                 <div class="ueu-feedback">

@@ -1,11 +1,56 @@
 /* UEU Dean Tools — overlay styles injected into Shadow DOM */
 
+/*
+ * Physics language: dense elastic.
+ *
+ *   Things have mass — they resist movement, then commit.
+ *   Springs overshoot but slowly, like a heavy pendulum.
+ *   Shadows are deep and layered — objects sit above the page
+ *   with real distance between them.
+ *
+ *   --ease-spring:   heavy spring. Overshoots, settles slowly.
+ *   --ease-heavy:    pure deceleration with weight. Takes time to stop.
+ *   --ease-press:    quick compression, slow recovery. Dense rubber.
+ *   --ease-drag:     high inertia. Hard to start, hard to stop.
+ */
+:host {
+  --ease-spring: cubic-bezier(0.22, 1.35, 0.50, 1);
+  --ease-heavy: cubic-bezier(0.06, 0.9, 0.16, 1);
+  --ease-press: cubic-bezier(0.4, 0, 0.08, 1);
+  --ease-drag: cubic-bezier(0.6, 0.0, 0.1, 1);
+  --t-arrive: 650ms;
+  --t-shift: 700ms;
+  --t-spring: 550ms;
+  --t-press: 200ms;
+  --t-drawer: 600ms;
+  --t-hover: 350ms;
+  --green: #2d6a4f;
+  --green-light: #e8f5e9;
+
+  /* Deep layered shadows — things float high above the page */
+  --shadow-rest:
+    0 1px 1px rgba(0,0,0,0.04),
+    0 2px 4px rgba(0,0,0,0.06),
+    0 6px 14px rgba(0,0,0,0.08),
+    0 16px 40px rgba(0,0,0,0.10),
+    0 32px 80px rgba(0,0,0,0.06);
+  --shadow-lifted:
+    0 1px 2px rgba(0,0,0,0.04),
+    0 4px 8px rgba(0,0,0,0.06),
+    0 12px 28px rgba(0,0,0,0.10),
+    0 28px 64px rgba(0,0,0,0.12),
+    0 48px 100px rgba(0,0,0,0.08);
+  --shadow-pressed:
+    0 1px 1px rgba(0,0,0,0.06),
+    0 2px 4px rgba(0,0,0,0.08);
+}
+
 .ueu-fab {
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
   z-index: 2147483647;
-  background: #2d6a4f;
+  background: var(--green);
   color: white;
   border: none;
   border-radius: 50%;
@@ -14,30 +59,73 @@
   cursor: pointer;
   font-size: 1.25rem;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-rest);
+  transition:
+    transform var(--t-spring) var(--ease-spring),
+    box-shadow var(--t-hover) var(--ease-heavy);
+}
+
+.ueu-fab:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: var(--shadow-lifted);
+}
+
+.ueu-fab:active {
+  transform: translateY(1px) scale(0.94);
+  box-shadow: var(--shadow-pressed);
+  transition-duration: 120ms;
+  transition-timing-function: var(--ease-press);
 }
 
 .ueu-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0);
   z-index: 2147483646;
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: backdrop-in 600ms var(--ease-heavy) forwards;
+}
+
+@keyframes backdrop-in {
+  to { background: rgba(20,18,16,0.38); }
 }
 
 .ueu-dialog {
+  position: relative;
   background: white;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   padding: 2rem;
   min-width: 400px;
   max-width: 90vw;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-  font-family: system-ui, sans-serif;
+  box-shadow: var(--shadow-lifted);
+  font-family: system-ui, -apple-system, sans-serif;
   font-size: 0.9rem;
   color: #222;
+
+  /* Arrives: rises into place with weight, slight spring at the end.
+     fill-mode: backwards (not both) so the animation doesn't lock
+     transform after completion — the transition needs to own it. */
+  animation: dialog-in var(--t-arrive) var(--ease-spring) backwards;
+
+  /* Shifts when drawer opens — heavy slide with inertia */
+  transform: translateX(0);
+  transition: transform var(--t-shift) var(--ease-drag);
+}
+
+/* Class toggled by signal — transitions smoothly because
+   the class exists before/after the drawer DOM mounts. */
+.ueu-dialog-drawer-open {
+  transform: translateX(-180px);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.96);
+  }
 }
 
 .ueu-dialog header {
@@ -66,6 +154,7 @@
   font-size: 0.75rem;
   cursor: pointer;
   padding: 0;
+  transition: color var(--t-hover) var(--ease-press);
 }
 
 .ueu-btn-feedback:hover {
@@ -82,11 +171,17 @@
   width: 100%;
   padding: 0.4rem 0.5rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.85rem;
   font-family: system-ui, sans-serif;
   resize: vertical;
   color: #333;
+  transition: border-color var(--t-hover) var(--ease-press);
+}
+
+.ueu-feedback-input:focus {
+  outline: none;
+  border-color: var(--green);
 }
 
 /* Case details */
@@ -197,23 +292,37 @@
   gap: 1rem;
 }
 
+/* History cards */
+
 .ueu-history-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
 }
 
 .ueu-history-card {
   background: #f8f9fa;
   border: 1px solid #e8eaed;
-  border-radius: 5px;
-  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  padding: 0.3rem 0.55rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  transition:
+    background var(--t-hover) var(--ease-press),
+    border-color var(--t-hover) var(--ease-press),
+    box-shadow var(--t-hover) var(--ease-press),
+    transform var(--t-spring) var(--ease-spring);
+}
+
+.ueu-history-card:hover {
+  background: #f0f4f0;
+  border-color: #c8d8c8;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  transform: translateX(3px);
 }
 
 .ueu-history-type {
@@ -250,16 +359,21 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: #2d6a4f;
+  color: var(--green);
   font-weight: 600;
   text-decoration: none;
   font-size: 0.95rem;
+  transition: transform var(--t-spring) var(--ease-spring);
+}
+
+.ueu-canvas-link:hover {
+  transform: translateX(3px);
 }
 
 .ueu-canvas-session-prompt {
   margin-top: 0.5rem;
   padding: 0.5rem 0.65rem;
-  border-radius: 4px;
+  border-radius: 6px;
   background: #fef9ec;
   border: 1px solid #f0d080;
   font-size: 0.8rem;
@@ -271,7 +385,7 @@
 .ueu-canvas-session-prompt p + p { margin-top: 0.25rem; }
 
 .ueu-canvas-session-prompt a {
-  color: #2d6a4f;
+  color: var(--green);
   font-weight: 600;
 }
 
@@ -291,12 +405,22 @@
 
 .ueu-btn-report {
   padding: 0.3rem 0.75rem;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid #e0a0a0;
   background: white;
   color: #b04040;
   font-size: 0.75rem;
   cursor: pointer;
+  transition:
+    background var(--t-hover) var(--ease-press),
+    transform var(--t-spring) var(--ease-spring),
+    box-shadow var(--t-hover) var(--ease-press);
+}
+
+.ueu-btn-report:active {
+  transform: scale(0.94);
+  box-shadow: var(--shadow-pressed);
+  transition-duration: 120ms;
 }
 
 /* Consent */
@@ -323,24 +447,47 @@
 
 .ueu-btn-consent {
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border-radius: 8px;
   border: none;
-  background: #2d6a4f;
+  background: var(--green);
   color: white;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background var(--t-hover) var(--ease-press),
+    transform var(--t-spring) var(--ease-spring),
+    box-shadow var(--t-hover) var(--ease-press);
+}
+
+.ueu-btn-consent:hover {
+  background: #245a42;
+  box-shadow: 0 4px 16px rgba(45,106,79,0.25);
+}
+
+.ueu-btn-consent:active {
+  transform: scale(0.94);
+  box-shadow: var(--shadow-pressed);
+  transition-duration: 120ms;
 }
 
 .ueu-btn-revoke {
   margin-top: 0.5rem;
   padding: 0.3rem 0.6rem;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid #dc2626;
   background: white;
   color: #dc2626;
   cursor: pointer;
   font-size: 0.75rem;
+  transition:
+    background var(--t-hover) var(--ease-press),
+    transform var(--t-spring) var(--ease-spring);
+}
+
+.ueu-btn-revoke:active {
+  transform: scale(0.94);
+  transition-duration: 120ms;
 }
 
 /* Dev tools */
@@ -360,12 +507,20 @@
 .ueu-dev button {
   margin-top: 0.5rem;
   padding: 0.4rem 0.75rem;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid #ccc;
   background: #f5f5f5;
   color: #333;
   cursor: pointer;
   font-size: 0.8rem;
+  transition:
+    background var(--t-hover) var(--ease-press),
+    transform var(--t-spring) var(--ease-spring);
+}
+
+.ueu-dev button:active {
+  transform: scale(0.94);
+  transition-duration: 120ms;
 }
 
 .ueu-dev button.ueu-btn-copied {
@@ -395,12 +550,213 @@
 
 .ueu-dev-input {
   padding: 0.3rem 0.5rem;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid #ccc;
   font-size: 0.8rem;
   font-family: monospace;
   color: #333;
   width: 100%;
+  transition: border-color var(--t-hover) var(--ease-press);
+}
+
+.ueu-dev-input:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+/* ============================================
+ * History drawer
+ *
+ * Dense elastic. Dialog and drawer are coupled —
+ * when one moves, the other responds. The shift
+ * has inertia: slow to start (drag), then committed.
+ * ============================================ */
+
+.ueu-history-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: none;
+  border: 1px solid #e8eaed;
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background var(--t-hover) var(--ease-press),
+    border-color var(--t-hover) var(--ease-press),
+    box-shadow var(--t-hover) var(--ease-press);
+}
+
+.ueu-history-toggle:hover {
+  background: #f8f9fa;
+  border-color: #c8d8c8;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+}
+
+.ueu-history-toggle:active {
+  background: #f0f4f0;
+  box-shadow: var(--shadow-pressed);
+  transition-duration: 120ms;
+}
+
+.ueu-history-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--green);
+  background: var(--green-light);
+  border-radius: 999px;
+  padding: 0.1rem 0.4rem;
+  min-width: 1.2rem;
+  text-align: center;
+}
+
+.ueu-drawer-arrow {
+  margin-left: auto;
+  font-size: 1.1rem;
+  color: #aaa;
+  transition: transform var(--t-spring) var(--ease-spring);
+}
+
+.ueu-drawer-arrow-open {
+  transform: rotate(90deg);
+}
+
+/* The drawer */
+
+.ueu-drawer {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  margin-left: 0.5rem;
+  width: 340px;
+  max-height: 80vh;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-lifted);
+  padding: 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.9rem;
+  color: #222;
+
+  /* Heavy slide in — inertia, then spring settle */
+  animation: drawer-in var(--t-drawer) var(--ease-spring) both;
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(-28px) scale(0.97);
+  }
+}
+
+.ueu-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.ueu-drawer-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #aaa;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition:
+    color var(--t-hover) var(--ease-press),
+    background var(--t-hover) var(--ease-press);
+}
+
+.ueu-drawer-close:hover {
+  color: #555;
+  background: #f0f0f0;
+}
+
+/* Filter chips — dense rubber toggles */
+
+.ueu-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+
+.ueu-chip {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #d0d0d0;
+  background: white;
+  color: #666;
+  font-size: 0.7rem;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background var(--t-hover) var(--ease-press),
+    color var(--t-hover) var(--ease-press),
+    border-color var(--t-hover) var(--ease-press),
+    transform var(--t-spring) var(--ease-spring),
+    box-shadow var(--t-hover) var(--ease-press);
+}
+
+.ueu-chip:hover {
+  border-color: #999;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* Press: compresses, slow spring back */
+.ueu-chip:active {
+  transform: scale(0.90);
+  transition-duration: 100ms;
+  transition-timing-function: var(--ease-press);
+}
+
+/* Active: heavy settle into pressed state */
+.ueu-chip-active {
+  background: var(--green);
+  color: white;
+  border-color: var(--green);
+  box-shadow: 0 2px 6px rgba(45,106,79,0.22);
+  animation: chip-engage 450ms var(--ease-spring);
+}
+
+@keyframes chip-engage {
+  0% { transform: scale(0.90); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* History cards — stagger with decelerating intervals (heavier = settle faster) */
+
+.ueu-drawer .ueu-history-card {
+  animation: card-in 500ms var(--ease-heavy) both;
+}
+
+.ueu-drawer .ueu-history-card:nth-child(1)  { animation-delay: 80ms; }
+.ueu-drawer .ueu-history-card:nth-child(2)  { animation-delay: 160ms; }
+.ueu-drawer .ueu-history-card:nth-child(3)  { animation-delay: 230ms; }
+.ueu-drawer .ueu-history-card:nth-child(4)  { animation-delay: 290ms; }
+.ueu-drawer .ueu-history-card:nth-child(5)  { animation-delay: 340ms; }
+.ueu-drawer .ueu-history-card:nth-child(6)  { animation-delay: 380ms; }
+.ueu-drawer .ueu-history-card:nth-child(7)  { animation-delay: 412ms; }
+.ueu-drawer .ueu-history-card:nth-child(8)  { animation-delay: 436ms; }
+.ueu-drawer .ueu-history-card:nth-child(9)  { animation-delay: 454ms; }
+.ueu-drawer .ueu-history-card:nth-child(10) { animation-delay: 468ms; }
+.ueu-drawer .ueu-history-card:nth-child(n+11) { animation-delay: 480ms; }
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 .ueu-pronouns {
@@ -427,6 +783,6 @@
   overflow-y: auto;
   background: #f5f5f5;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   margin-top: 6px;
 }
