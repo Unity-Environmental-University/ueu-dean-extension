@@ -104,6 +104,11 @@ body {
   flex-shrink: 0;
 }
 
+.step-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .step-body h2 {
   font-size: 1.1em;
   font-weight: 700;
@@ -149,6 +154,22 @@ body {
   border-bottom-color: var(--teal);
 }
 
+/* Illustrations */
+
+.step-visual {
+  margin-top: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--grid);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.step-visual svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 footer {
   border-top: 1px solid var(--grid);
   padding: 24px;
@@ -189,7 +210,7 @@ footer {
 <body>
 
 <nav class="top-nav">
-  <a class="back-link" href="index.html">← Dean Tools</a>
+  <a class="back-link" href="index.html">&larr; Dean Tools</a>
 </nav>
 
 <div class="page-header">
@@ -206,6 +227,27 @@ footer {
       <h2>Download the latest release</h2>
       <p>Go to the <a href="https://github.com/Unity-Environmental-University/ueu-dean-extension/releases" target="_blank">releases page</a> and download the <strong>.zip</strong> file from the most recent release.</p>
       <p class="note">The file will be named something like <span class="path">ueu-dean-extension-v0.2.0.zip</span>.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 120" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="120" fill="#f6f8fa"/>
+          <!-- Release card -->
+          <rect x="24" y="16" width="532" height="88" rx="6" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <!-- Tag icon -->
+          <circle cx="52" cy="40" r="10" fill="#1B7A68" opacity="0.12"/>
+          <text x="52" y="44" text-anchor="middle" font-size="11" fill="#1B7A68" font-weight="700">v</text>
+          <!-- Release title -->
+          <text x="72" y="44" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#1B7A68">v0.2.0</text>
+          <text x="120" y="44" font-family="system-ui, sans-serif" font-size="13" fill="#57606a">Latest</text>
+          <!-- Date -->
+          <text x="72" y="62" font-family="system-ui, sans-serif" font-size="11" fill="#8b949e">Released Mar 18, 2026</text>
+          <!-- Download button -->
+          <rect x="72" y="72" width="200" height="24" rx="4" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <text x="84" y="88" font-family="system-ui, sans-serif" font-size="11" fill="#24292f">ueu-dean-extension-v0.2.0.zip</text>
+          <!-- Arrow indicator -->
+          <rect x="490" y="36" width="50" height="24" rx="12" fill="#1B7A68"/>
+          <text x="515" y="52" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="white">.zip</text>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -215,6 +257,26 @@ footer {
       <h2>Unzip it somewhere stable</h2>
       <p>Double-click the zip to unzip it. Move the resulting folder somewhere you won't accidentally delete it — your Documents folder works well.</p>
       <p class="note">Chrome loads the extension from this folder every time it starts. If you move or delete the folder later, the extension will stop working.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 90" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="90" fill="#f6f8fa"/>
+          <!-- Folder path -->
+          <rect x="24" y="20" width="532" height="50" rx="6" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <!-- Folder icon -->
+          <rect x="44" y="34" width="22" height="16" rx="2" fill="#B87D2A" opacity="0.7"/>
+          <rect x="44" y="32" width="12" height="6" rx="1.5" fill="#B87D2A" opacity="0.5"/>
+          <!-- Path breadcrumbs -->
+          <text x="78" y="48" font-family="system-ui, sans-serif" font-size="12" fill="#8b949e">Documents</text>
+          <text x="148" y="48" font-family="system-ui, sans-serif" font-size="12" fill="#8b949e">/</text>
+          <!-- Target folder -->
+          <rect x="160" y="34" width="22" height="16" rx="2" fill="#1B7A68" opacity="0.7"/>
+          <rect x="160" y="32" width="12" height="6" rx="1.5" fill="#1B7A68" opacity="0.5"/>
+          <text x="194" y="48" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="#24292f">ueu-dean-extension</text>
+          <!-- Checkmark -->
+          <circle cx="520" cy="45" r="12" fill="#1B7A68" opacity="0.12"/>
+          <path d="M514 45 L518 49 L527 40" stroke="#1B7A68" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -223,6 +285,21 @@ footer {
     <div class="step-body">
       <h2>Open Chrome's extension manager</h2>
       <p>In Chrome, go to <span class="path">chrome://extensions</span> — type that directly into the address bar and press Enter.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 70" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="70" fill="#f6f8fa"/>
+          <!-- Chrome address bar -->
+          <rect x="24" y="14" width="532" height="42" rx="21" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <!-- Lock icon area -->
+          <circle cx="52" cy="35" r="8" fill="none" stroke="#8b949e" stroke-width="1.5"/>
+          <rect x="50" y="38" width="4" height="5" rx="1" fill="#8b949e"/>
+          <!-- URL text -->
+          <text x="70" y="39" font-family="system-ui, sans-serif" font-size="13" fill="#24292f">chrome://extensions</text>
+          <!-- Arrow key hint -->
+          <rect x="470" y="24" width="72" height="22" rx="4" fill="#EDE5D8"/>
+          <text x="506" y="39" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="600" fill="#6B5344">Enter &crarr;</text>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -231,6 +308,30 @@ footer {
     <div class="step-body">
       <h2>Turn on Developer mode</h2>
       <p>In the top-right corner of the extensions page, flip the <strong>Developer mode</strong> toggle on. A row of new buttons will appear.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 100" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="100" fill="#f6f8fa"/>
+          <!-- Extensions page header bar -->
+          <rect x="24" y="12" width="532" height="76" rx="6" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <text x="44" y="38" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#202124">Extensions</text>
+          <!-- Developer mode toggle -->
+          <text x="388" y="38" font-family="system-ui, sans-serif" font-size="12" fill="#5f6368">Developer mode</text>
+          <!-- Toggle track (on) -->
+          <rect x="492" y="25" width="40" height="22" rx="11" fill="#1B7A68"/>
+          <!-- Toggle thumb (on position) -->
+          <circle cx="521" cy="36" r="8" fill="white"/>
+          <!-- Callout arrow -->
+          <line x1="512" y1="14" x2="512" y2="22" stroke="#D94F2A" stroke-width="1.5"/>
+          <polygon points="508,14 516,14 512,8" fill="#D94F2A"/>
+          <!-- New buttons row -->
+          <rect x="44" y="54" width="100" height="26" rx="4" fill="white" stroke="#1B7A68" stroke-width="1.5"/>
+          <text x="94" y="71" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#1B7A68">Load unpacked</text>
+          <rect x="154" y="54" width="90" height="26" rx="4" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <text x="199" y="71" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#5f6368">Pack extension</text>
+          <rect x="254" y="54" width="60" height="26" rx="4" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <text x="284" y="71" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#5f6368">Update</text>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -239,7 +340,25 @@ footer {
     <div class="step-body">
       <h2>Click "Load unpacked"</h2>
       <p>Click the <strong>Load unpacked</strong> button, then select the folder you unzipped in step 2.</p>
-      <p>The extension will appear in your list with a green checkmark.</p>
+      <p>The extension will appear in your list.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 100" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="100" fill="#f6f8fa"/>
+          <!-- Extension card -->
+          <rect x="24" y="12" width="532" height="76" rx="6" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <!-- Extension icon -->
+          <rect x="44" y="28" width="44" height="44" rx="8" fill="#2d6a4f"/>
+          <text x="66" y="56" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="white">U</text>
+          <!-- Extension info -->
+          <text x="104" y="44" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#202124">UEU Dean Tools</text>
+          <text x="104" y="62" font-family="system-ui, sans-serif" font-size="11" fill="#5f6368">Convenience tools for Unity Environmental University deans</text>
+          <!-- Toggle (enabled) -->
+          <rect x="484" y="39" width="40" height="22" rx="11" fill="#1B7A68"/>
+          <circle cx="513" cy="50" r="8" fill="white"/>
+          <!-- Version -->
+          <text x="104" y="76" font-family="system-ui, sans-serif" font-size="10" fill="#8b949e">v0.2.0</text>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -249,6 +368,38 @@ footer {
       <h2>Pin it to your toolbar</h2>
       <p>Click the puzzle-piece icon in Chrome's toolbar, find <strong>Dean Tools</strong>, and click the pin icon so it stays visible.</p>
       <p>That's it. Open any Stratus case and the <strong>U</strong> button will appear in the bottom-right corner of the page.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 140" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="140" fill="#f6f8fa"/>
+          <!-- Toolbar area -->
+          <rect x="24" y="12" width="532" height="36" rx="0" fill="#e8eaed"/>
+          <!-- Puzzle piece icon in toolbar -->
+          <rect x="500" y="18" width="24" height="24" rx="4" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <text x="512" y="35" text-anchor="middle" font-size="14">&#x1F9E9;</text>
+          <!-- Callout arrow -->
+          <line x1="512" y1="6" x2="512" y2="14" stroke="#D94F2A" stroke-width="1.5"/>
+          <polygon points="508,6 516,6 512,0" fill="#D94F2A"/>
+          <!-- Dropdown -->
+          <rect x="340" y="50" width="216" height="78" rx="6" fill="white" stroke="#d0d7de" stroke-width="1" filter="url(#shadow)"/>
+          <!-- Extension row -->
+          <rect x="350" y="58" width="196" height="30" rx="4" fill="#f6f8fa"/>
+          <rect x="358" y="63" width="20" height="20" rx="4" fill="#2d6a4f"/>
+          <text x="368" y="78" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="white">U</text>
+          <text x="386" y="78" font-family="system-ui, sans-serif" font-size="11" fill="#202124">UEU Dean Tools</text>
+          <!-- Pin icon -->
+          <rect x="518" y="64" width="20" height="20" rx="3" fill="none" stroke="#1B7A68" stroke-width="1.5"/>
+          <line x1="528" y1="68" x2="528" y2="80" stroke="#1B7A68" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="528" cy="73" r="2" fill="#1B7A68"/>
+          <!-- "Click to pin" label -->
+          <text x="365" y="108" font-family="system-ui, sans-serif" font-size="10" fill="#8b949e">Click the pin to keep it visible</text>
+          <!-- Shadow filter -->
+          <defs>
+            <filter id="shadow" x="-4%" y="-4%" width="108%" height="116%">
+              <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.1"/>
+            </filter>
+          </defs>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -276,6 +427,27 @@ footer {
       <h2>Replace the old folder</h2>
       <p>Unzip the download and replace the old extension folder with the new one. Use the same location — if you put the original in Documents, put the new one there too.</p>
       <p class="note">You can delete the old folder first, or just overwrite it. Either way works.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 80" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="80" fill="#f6f8fa"/>
+          <!-- Old folder (faded) -->
+          <rect x="40" y="24" width="170" height="36" rx="5" fill="white" stroke="#d0d7de" stroke-width="1" opacity="0.5"/>
+          <rect x="52" y="32" width="18" height="14" rx="2" fill="#A08070" opacity="0.4"/>
+          <rect x="52" y="30" width="10" height="5" rx="1.5" fill="#A08070" opacity="0.3"/>
+          <text x="78" y="47" font-family="ui-monospace, monospace" font-size="11" fill="#A08070">old version</text>
+          <!-- Arrow -->
+          <line x1="230" y1="42" x2="290" y2="42" stroke="#B87D2A" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <polygon points="290,38 298,42 290,46" fill="#B87D2A"/>
+          <!-- New folder -->
+          <rect x="310" y="24" width="220" height="36" rx="5" fill="white" stroke="#1B7A68" stroke-width="1.5"/>
+          <rect x="322" y="32" width="18" height="14" rx="2" fill="#1B7A68" opacity="0.7"/>
+          <rect x="322" y="30" width="10" height="5" rx="1.5" fill="#1B7A68" opacity="0.5"/>
+          <text x="348" y="47" font-family="ui-monospace, monospace" font-size="11" font-weight="600" fill="#24292f">ueu-dean-extension</text>
+          <!-- Checkmark -->
+          <circle cx="510" cy="42" r="9" fill="#1B7A68" opacity="0.12"/>
+          <path d="M505 42 L508 45 L515 38" stroke="#1B7A68" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -285,6 +457,27 @@ footer {
       <h2>Reload in Chrome</h2>
       <p>Go to <span class="path">chrome://extensions</span>, find <strong>UEU Dean Tools</strong>, and click the reload icon (the circular arrow). That's it.</p>
       <p class="note">You can also press <strong>Alt+Shift+R</strong> on any Salesforce page to reload the extension without opening the extensions page.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 80" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="80" fill="#f6f8fa"/>
+          <!-- Extension card -->
+          <rect x="24" y="12" width="532" height="56" rx="6" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <!-- Icon -->
+          <rect x="40" y="22" width="36" height="36" rx="6" fill="#2d6a4f"/>
+          <text x="58" y="46" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="white">U</text>
+          <!-- Name -->
+          <text x="88" y="40" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#202124">UEU Dean Tools</text>
+          <text x="88" y="54" font-family="system-ui, sans-serif" font-size="10" fill="#8b949e">v0.2.0</text>
+          <!-- Reload button with callout -->
+          <circle cx="480" cy="40" r="16" fill="white" stroke="#1B7A68" stroke-width="2"/>
+          <!-- Reload arrow -->
+          <path d="M474 40 a8 8 0 1 1 2 6" stroke="#1B7A68" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <polygon points="474,36 478,40 471,40" fill="#1B7A68"/>
+          <!-- Callout -->
+          <line x1="480" y1="10" x2="480" y2="20" stroke="#D94F2A" stroke-width="1.5"/>
+          <polygon points="476,10 484,10 480,4" fill="#D94F2A"/>
+        </svg>
+      </div>
     </div>
   </div>
 
