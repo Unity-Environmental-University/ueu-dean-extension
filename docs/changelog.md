@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-03-18 (v0.2.0)
+
+### New
+
+- **Student History drawer.** Click "Student History" on any case to open a slide-out panel showing all prior cases for that student. Filter by case subtype — the current case's subtype is auto-selected, and your filter choice is remembered across sessions.
+
+- **Instructor links.** The extension now resolves instructors in Canvas and shows Profile, In Course, Act as, and Email links — the same set of links you get for students.
+
+- **Works on all case types.** Any case with a Course Offering now resolves Canvas course, student, and instructor links — not just dishonesty and grade appeal cases.
+
+### Fixed
+
+- **Student Canvas links now resolve reliably.** The extension was trying to look up students using an incorrect identifier (Unity ID as SIS ID). It now reads the Canvas User ID directly from the student's SF Account record, with fallbacks to enrollment and email search.
+
+- **Instructor resolution works without admin scope.** Instructor lookup now searches within the course first (which works with a standard Canvas session) instead of requiring admin-level API access.
+
+### Improved
+
+- The main dialog and drawer move together with weighted, spring-damped transitions — things feel like they have mass.
+
+---
+
 ## 2026-03-12 (v0.3)
 
 ### Fixed
