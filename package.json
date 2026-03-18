@@ -13,7 +13,8 @@
     "lint:firefox": "web-ext lint --source-dir dist/firefox",
     "decohere": "npx tsx scripts/decohere.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "release": "npm run build:chrome && bash scripts/release.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
