@@ -433,10 +433,10 @@ footer {
   <div class="step">
     <div class="step-number">02</div>
     <div class="step-body">
-      <h2>Open the Dean Tools folder on your Desktop</h2>
-      <p>Find the <strong>Dean Tools</strong> folder on your Desktop (where you put it during install). Open it so you can see the files inside.</p>
+      <h2>Delete the old Dean Tools folder</h2>
+      <p>Find the <strong>Dean Tools</strong> folder on your Desktop (where you put it during install). <strong>Delete the whole folder</strong> — just drag it to the trash.</p>
       <div class="warn">
-        <strong>Can't find it?</strong> Go to <span class="path">chrome://extensions</span>, find Dean Tools, and look for a line that says something like <em>Loaded from: C:\Users\you\Desktop\Dean Tools</em>. That tells you where it is.
+        <strong>Can't find it?</strong> Go to <span class="path">chrome://extensions</span>, find Dean Tools in the list, and look for the file path underneath the name. That tells you where Chrome is loading it from.
       </div>
     </div>
   </div>
@@ -444,30 +444,32 @@ footer {
   <div class="step">
     <div class="step-number">03</div>
     <div class="step-body">
-      <h2>Replace the contents</h2>
-      <p><strong>Select everything inside the Dean Tools folder</strong> (Ctrl+A on Windows, Cmd+A on Mac) and <strong>delete it</strong>.</p>
-      <p>Then unzip the new download and <strong>copy everything from the new folder into the now-empty Dean Tools folder</strong>.</p>
-      <p class="reassure">You're replacing the insides, not the folder itself. Chrome still points at the same folder, so it'll pick up the new files.</p>
+      <h2>Unzip the new one in the same spot</h2>
+      <p>Double-click the zip you just downloaded. It'll create a new <strong>Dean Tools</strong> folder. Drag it to your <strong>Desktop</strong> — right where the old one was.</p>
+      <p class="reassure">Same name, same place. Chrome will find it.</p>
       <div class="step-visual">
-        <svg viewBox="0 0 580 90" xmlns="http://www.w3.org/2000/svg">
-          <rect width="580" height="90" fill="#f6f8fa"/>
-          <!-- Old contents (faded, crossed) -->
-          <rect x="36" y="20" width="160" height="50" rx="5" fill="white" stroke="#d0d7de" stroke-width="1" opacity="0.4"/>
-          <text x="60" y="42" font-family="system-ui, sans-serif" font-size="10" fill="#8b949e" opacity="0.5">old files</text>
-          <line x1="36" y1="20" x2="196" y2="70" stroke="#D94F2A" stroke-width="1" opacity="0.4"/>
-          <line x1="196" y1="20" x2="36" y2="70" stroke="#D94F2A" stroke-width="1" opacity="0.4"/>
+        <svg viewBox="0 0 580 110" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="110" fill="#f6f8fa"/>
+          <!-- Old folder being deleted -->
+          <rect x="36" y="16" width="160" height="36" rx="5" fill="white" stroke="#d0d7de" stroke-width="1" opacity="0.35"/>
+          <rect x="48" y="24" width="18" height="14" rx="2" fill="#A08070" opacity="0.3"/>
+          <rect x="48" y="22" width="10" height="5" rx="1.5" fill="#A08070" opacity="0.2"/>
+          <text x="74" y="36" font-family="system-ui, sans-serif" font-size="11" fill="#A08070" opacity="0.5">Dean Tools</text>
+          <line x1="36" y1="16" x2="196" y2="52" stroke="#D94F2A" stroke-width="1" opacity="0.3"/>
+          <text x="100" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#A08070">delete this</text>
           <!-- Arrow -->
-          <line x1="216" y1="45" x2="276" y2="45" stroke="#B87D2A" stroke-width="1.5"/>
-          <polygon points="276,41 284,45 276,49" fill="#B87D2A"/>
-          <!-- Dean Tools folder -->
-          <rect x="296" y="14" width="244" height="62" rx="5" fill="white" stroke="#1B7A68" stroke-width="1.5"/>
-          <rect x="312" y="28" width="18" height="14" rx="2" fill="#1B7A68" opacity="0.7"/>
-          <rect x="312" y="26" width="10" height="5" rx="1.5" fill="#1B7A68" opacity="0.5"/>
-          <text x="338" y="39" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#24292f">Dean Tools</text>
-          <text x="312" y="58" font-family="system-ui, sans-serif" font-size="10" fill="#5f6368">new files inside, same folder</text>
+          <line x1="216" y1="34" x2="276" y2="34" stroke="#B87D2A" stroke-width="1.5"/>
+          <polygon points="276,30 284,34 276,38" fill="#B87D2A"/>
+          <!-- New folder on Desktop -->
+          <rect x="296" y="10" width="244" height="90" rx="5" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <text x="316" y="28" font-family="system-ui, sans-serif" font-size="10" fill="#8b949e" font-weight="600" letter-spacing="0.05em">DESKTOP</text>
+          <rect x="316" y="40" width="26" height="20" rx="3" fill="#2d6a4f" opacity="0.8"/>
+          <rect x="316" y="37" width="14" height="6" rx="2" fill="#2d6a4f" opacity="0.6"/>
+          <text x="352" y="54" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#24292f">Dean Tools</text>
+          <text x="316" y="78" font-family="system-ui, sans-serif" font-size="10" fill="#5f6368">new version, same name, same place</text>
           <!-- Check -->
-          <circle cx="516" cy="45" r="9" fill="#1B7A68" opacity="0.12"/>
-          <path d="M511 45 L514 48 L521 41" stroke="#1B7A68" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="516" cy="55" r="9" fill="#1B7A68" opacity="0.12"/>
+          <path d="M511 55 L514 58 L521 51" stroke="#1B7A68" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
     </div>
