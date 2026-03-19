@@ -54,6 +54,8 @@ export const state = {
     subType: string | null
     status: string
     createdDate: string
+    courseName: string | null
+    termName: string | null
   }> | null,
   loadingPriorCases: false,
 
@@ -564,14 +566,21 @@ async function resolveStudent(opts: {
 }
 
 /** Query SF for all prior cases linked to the same ContactId */
-async function loadPriorCases(contactId: string, currentCaseId: string, token: number) {
+async function loadPriorCases(contactId: string, _currentCaseId: string, token: number) {
   state.loadingPriorCases = true
   state.notify()
   try {
-    const soql = `SELECT Id, CaseNumber, Type, SubType__c, Status, CreatedDate FROM Case WHERE ContactId = '${contactId}' AND Id != '${currentCaseId}' ORDER BY CreatedDate DESC LIMIT 20`
+    const soql = `SELECT Id, CaseNumber, Type, SubType__c, Status, CreatedDate, Course_Offering_Participant__r.CourseOfferingId, Course_Offering_Participant__r.CourseOffering.Name, Course_Offering_Participant__r.CourseOffering.hed__Term__r.Name FROM Case WHERE ContactId = '${contactId}' ORDER BY CreatedDate DESC LIMIT 25`
     const result = await sfQuery<{
       Id: string; CaseNumber: string; Type: string
       SubType__c: string | null; Status: string; CreatedDate: string
+      Course_Offering_Participant__r?: {
+        CourseOfferingId?: string
+        CourseOffering?: {
+          Name?: string
+          hed__Term__r?: { Name?: string }
+        }
+      }
     }>(soql)
     if (stale(token)) return
     state.priorCases = result.records.map(r => ({
@@ -581,6 +590,8 @@ async function loadPriorCases(contactId: string, currentCaseId: string, token: n
       subType: r.SubType__c,
       status: r.Status,
       createdDate: r.CreatedDate,
+      courseName: r.Course_Offering_Participant__r?.CourseOffering?.Name ?? null,
+      termName: r.Course_Offering_Participant__r?.CourseOffering?.hed__Term__r?.Name ?? null,
     }))
     diag(state.diagnostics, "prior-cases", `found ${state.priorCases.length} prior case(s)`)
   } catch (e) {

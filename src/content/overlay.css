@@ -331,11 +331,29 @@
   transform: translateX(3px);
 }
 
+.ueu-history-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.ueu-history-card-detail {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
 .ueu-history-type {
-  flex: 1;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #666;
-  min-width: 0;
+}
+
+.ueu-history-term {
+  font-size: 0.7rem;
+  color: #999;
+  font-style: italic;
 }
 
 .ueu-history-right {
@@ -345,9 +363,15 @@
   flex-shrink: 0;
 }
 
-.ueu-history-date {
+.ueu-history-current {
+  border-color: #2d6a4f;
+  background: #f0faf5;
+}
+
+.ueu-current-marker {
   font-size: 0.7rem;
-  color: #aaa;
+  color: #2d6a4f;
+  font-weight: 400;
 }
 
 .ueu-case-link {

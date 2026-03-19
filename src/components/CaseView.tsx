@@ -226,16 +226,28 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
           <Show when={filteredCases() !== null && filteredCases()!.length! > 0}>
             <ul class="ueu-history-list">
               <For each={filteredCases()!}>
-                {c => (
-                  <li class="ueu-history-card">
-                    <a href={`/lightning/r/Case/${c.id}/view`} target="_blank" rel="noopener noreferrer" class="ueu-case-link">{c.caseNumber}</a>
-                    <span class="ueu-history-type">{c.type}{c.subType ? ` · ${c.subType}` : ""}</span>
-                    <span class="ueu-history-right">
-                      <span class="ueu-pill" data-status={c.status.toLowerCase()}>{c.status}</span>
-                      <span class="ueu-history-date">{new Date(c.createdDate).toLocaleDateString()}</span>
-                    </span>
-                  </li>
-                )}
+                {c => {
+                  const isCurrent = () => c.caseNumber === caseData()?.caseNumber
+                  return (
+                    <li class="ueu-history-card" classList={{"ueu-history-current": isCurrent()}}>
+                      <div class="ueu-history-card-top">
+                        <a href={`/lightning/r/Case/${c.id}/view`} target="_blank" rel="noopener noreferrer" class="ueu-case-link">
+                          {c.caseNumber}
+                          <Show when={isCurrent()}><span class="ueu-current-marker"> (this case)</span></Show>
+                        </a>
+                        <span class="ueu-history-right">
+                          <span class="ueu-pill" data-status={c.status.toLowerCase()}>{c.status}</span>
+                        </span>
+                      </div>
+                      <div class="ueu-history-card-detail">
+                        <span class="ueu-history-type">{c.type}{c.subType ? ` · ${c.subType}` : ""}</span>
+                        <Show when={c.termName || c.courseName}>
+                          <span class="ueu-history-term">{c.termName ?? c.courseName}</span>
+                        </Show>
+                      </div>
+                    </li>
+                  )
+                }}
               </For>
             </ul>
           </Show>
