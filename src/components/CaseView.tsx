@@ -51,10 +51,12 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
     }
   })
 
-  // Auto-select current case's subtype when case data loads (only if no sticky override)
+  // Auto-select current case's subtype on first load only (not when user clicks "All")
+  let hasAutoSelected = false
   createEffect(() => {
     const sub = caseData()?.subType
-    if (sub && !subTypeFilter()) {
+    if (sub && !hasAutoSelected && !subTypeFilter()) {
+      hasAutoSelected = true
       setSubTypeFilter(sub)
     }
   })
@@ -170,7 +172,9 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
           <button class="ueu-history-toggle" onClick={toggleDrawer}>
             <span class="ueu-label" style={{"margin": "0"}}>Student History</span>
             <Show when={priorCases() !== null}>
-              <span class="ueu-history-count">{priorCases()!.length}</span>
+              <span class="ueu-history-count">
+                {subTypeFilter() && filteredCases() ? `${filteredCases()!.length}/${priorCases()!.length}` : priorCases()!.length}
+              </span>
             </Show>
             <Show when={loadingPriorCases()}>
               <span class="ueu-history-count" style={{"color": "#888"}}>…</span>

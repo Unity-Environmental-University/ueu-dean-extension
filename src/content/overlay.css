@@ -202,9 +202,15 @@
   color: white;
 }
 
+.ueu-pill[data-status]             { background: #6b7280; } /* fallback grey for any status */
+.ueu-pill[data-status="new"]      { background: #0891b2; }
 .ueu-pill[data-status="open"]     { background: #d97706; }
 .ueu-pill[data-status="pending"]  { background: #2563eb; }
+.ueu-pill[data-status="escalated"] { background: #dc2626; }
+.ueu-pill[data-status="closed"]   { background: #4b5563; }
 .ueu-pill[data-status="resolved"] { background: #16a34a; }
+.ueu-pill[data-status="completed"] { background: #16a34a; }
+.ueu-pill[data-status="active"]   { background: #16a34a; }
 .ueu-pill[data-incident]          { background: #6b21a8; }
 
 .ueu-case-number {
@@ -329,9 +335,7 @@
   flex: 1;
   font-size: 0.75rem;
   color: #666;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .ueu-history-right {
