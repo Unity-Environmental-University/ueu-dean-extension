@@ -570,14 +570,11 @@ async function loadPriorCases(contactId: string, _currentCaseId: string, token: 
   state.loadingPriorCases = true
   state.notify()
   try {
-    const soql = `SELECT Id, CaseNumber, Type, SubType__c, Status, CreatedDate, Course_Offering__r.Name, Course_Offering__r.hed__Term__r.Name FROM Case WHERE ContactId = '${contactId}' ORDER BY CreatedDate DESC LIMIT 25`
+    const soql = `SELECT Id, CaseNumber, Type, SubType__c, Status, CreatedDate, Course_Offering__r.Name FROM Case WHERE ContactId = '${contactId}' ORDER BY CreatedDate DESC LIMIT 25`
     const result = await sfQuery<{
       Id: string; CaseNumber: string; Type: string
       SubType__c: string | null; Status: string; CreatedDate: string
-      Course_Offering__r?: {
-        Name?: string
-        hed__Term__r?: { Name?: string }
-      }
+      Course_Offering__r?: { Name?: string }
     }>(soql)
     if (stale(token)) return
     state.priorCases = result.records.map(r => ({
@@ -588,7 +585,7 @@ async function loadPriorCases(contactId: string, _currentCaseId: string, token: 
       status: r.Status,
       createdDate: r.CreatedDate,
       courseName: r.Course_Offering__r?.Name ?? null,
-      termName: r.Course_Offering__r?.hed__Term__r?.Name ?? null,
+      termName: null,  // TODO: need to discover Term relationship name on CourseOffering via describe
     }))
     diag(state.diagnostics, "prior-cases", `found ${state.priorCases.length} prior case(s)`)
   } catch (e) {
