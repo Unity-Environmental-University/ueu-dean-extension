@@ -26,5 +26,8 @@ dist-ssr
 # decohere
 .decohere-tmp/
 
+# Release zips
+dean-tools-v*.zip
+
 # Analysis scripts (local scratch)
 scripts/

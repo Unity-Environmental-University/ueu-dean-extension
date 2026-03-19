@@ -285,24 +285,41 @@ function isAuthError(e: unknown): boolean {
   return e instanceof Error && e.message.includes(" 401:")
 }
 
+/** Find the exact email match from a set of Canvas user results */
+function findExactEmailMatch(
+  users: Array<{ id: number; name: string; email?: string; login_id?: string }>,
+  email: string,
+): { id: number; name: string } | null {
+  const lower = email.toLowerCase()
+  // Exact match on email or login_id
+  const exact = users.find(u =>
+    u.email?.toLowerCase() === lower || u.login_id?.toLowerCase() === lower
+  )
+  if (exact) return exact
+  // If only one result, trust it (Canvas may not return email field for non-admins)
+  if (users.length === 1) return users[0]
+  return null
+}
+
 /** Search Canvas for student by email — course-scoped first, global fallback */
 async function lookupCanvasStudentByEmail(email: string) {
   // 1. Course-scoped search (works without admin scope)
   const courseId = state.canvas?.courseId
   if (courseId) {
     try {
-      const users = await canvasFetch<Array<{ id: number; name: string }>>(
-        `/api/v1/courses/${courseId}/search_users?search_term=${encodeURIComponent(email)}&per_page=1`
+      const users = await canvasFetch<Array<{ id: number; name: string; email?: string; login_id?: string }>>(
+        `/api/v1/courses/${courseId}/search_users?search_term=${encodeURIComponent(email)}&include[]=email&include[]=login_id&per_page=5`
       )
-      if (users.length > 0 && state.canvas) {
-        state.canvas.studentId = String(users[0].id)
-        state.canvas.studentName = users[0].name
-        diag(state.diagnostics, "student-email-lookup", `course-scoped: found ${users[0].id}`)
+      const match = findExactEmailMatch(users, email)
+      if (match && state.canvas) {
+        state.canvas.studentId = String(match.id)
+        state.canvas.studentName = match.name
+        diag(state.diagnostics, "student-email-lookup", `course-scoped: exact match ${match.id} (of ${users.length} results)`)
         state.loadingStudent = false
         state.notify()
         return
       }
-      diag(state.diagnostics, "student-email-lookup", `course-scoped: no match in course ${courseId}`)
+      diag(state.diagnostics, "student-email-lookup", `course-scoped: ${users.length} result(s), no exact match in course ${courseId}`)
     } catch (e) {
       if (isAuthError(e)) {
         state.loadingStudent = false
@@ -316,13 +333,14 @@ async function lookupCanvasStudentByEmail(email: string) {
 
   // 2. Global search fallback (needs admin scope — may 404)
   try {
-    const users = await canvasFetch<Array<{ id: number; name: string }>>(
-      `/api/v1/users?search_term=${encodeURIComponent(email)}&per_page=1`
+    const users = await canvasFetch<Array<{ id: number; name: string; email?: string; login_id?: string }>>(
+      `/api/v1/users?search_term=${encodeURIComponent(email)}&include[]=email&include[]=login_id&per_page=5`
     )
-    if (users.length > 0 && state.canvas) {
-      state.canvas.studentId = String(users[0].id)
-      state.canvas.studentName = users[0].name
-      diag(state.diagnostics, "student-email-lookup", `global: found ${users[0].id}`)
+    const match = findExactEmailMatch(users, email)
+    if (match && state.canvas) {
+      state.canvas.studentId = String(match.id)
+      state.canvas.studentName = match.name
+      diag(state.diagnostics, "student-email-lookup", `global: exact match ${match.id} (of ${users.length} results)`)
       state.loadingStudent = false
       state.notify()
       return
@@ -850,6 +868,8 @@ async function doNavigate() {
   if (state.page?.recordId === parsed.recordId && (state.loading || state.caseData || state.canvas)) return
 
   state.page = parsed
+  state.loading = true
+  state.notify()
   const token = ++navToken
 
   // Gate behind explicit user consent
