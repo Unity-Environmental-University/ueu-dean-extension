@@ -10,6 +10,8 @@ import { getRecord, parseRecordUrl, describeObject, sfQuery } from "./sfapi"
 import { getPermissions } from "./permissions"
 import { pick, diag, makeFieldAccessor, type DiagLog, type DiagEntry } from "./resolve"
 import { observeFields, observeCaseComplete } from "./observer"
+import { loadAccountCourses, type AccountResult } from "./load-account"
+import type { TermGroup } from "./student-courses"
 
 const CANVAS_HOST = "unity.instructure.com"
 
@@ -94,6 +96,14 @@ export const state = {
     name: string | null
     email: string | null
     canvasId: string | null
+  } | null,
+
+  /** Account page data — courses grouped by term */
+  accountData: null as {
+    canvasUserId: string | null
+    accountName: string | null
+    termGroups: TermGroup[]
+    error: string | null
   } | null,
 
   /** Raw Contact record for debugging */
@@ -837,6 +847,37 @@ async function loadTerm(recordId: string, token: number) {
   }
 }
 
+async function loadAccount(recordId: string, token: number) {
+  state.loading = true
+  state.error = null
+  state.accountData = null
+  state.diagnostics = []
+  state.notify()
+
+  const result = await loadAccountCourses(recordId, {
+    getRecord,
+    canvasFetch,
+    isStale: () => stale(token),
+  })
+
+  if (stale(token)) return
+
+  state.accountData = {
+    canvasUserId: result.canvasUserId,
+    accountName: result.accountName,
+    termGroups: result.termGroups,
+    error: result.error,
+  }
+  state.diagnostics.push(...result.diagnostics)
+  state.loading = false
+
+  if (result.error === "canvas-session-required") {
+    state.studentError = "canvas-session-required"
+  }
+
+  state.notify()
+}
+
 let navigateTimer: ReturnType<typeof setTimeout> | null = null
 
 /** Handle a URL change — debounced to let SF's SPA routing settle */
@@ -857,6 +898,7 @@ async function doNavigate() {
       state.gradeAppeal = null
       state.instructor = null
       state.canvas = null
+      state.accountData = null
       state.loading = false
       state.error = null
       state.notify()
@@ -865,7 +907,7 @@ async function doNavigate() {
   }
 
   // Skip if we're already on this record and have data or are actively loading
-  if (state.page?.recordId === parsed.recordId && (state.loading || state.caseData || state.canvas)) return
+  if (state.page?.recordId === parsed.recordId && (state.loading || state.caseData || state.canvas || state.accountData)) return
 
   state.page = parsed
   state.loading = true
@@ -888,6 +930,8 @@ async function doNavigate() {
     await loadCourseOffering(parsed.recordId, token)
   } else if (parsed.objectType === "Term") {
     await loadTerm(parsed.recordId, token)
+  } else if (parsed.objectType === "Account") {
+    await loadAccount(parsed.recordId, token)
   }
 }
 
