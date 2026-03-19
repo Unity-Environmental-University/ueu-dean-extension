@@ -6,7 +6,7 @@
 
 import { createSignal, createResource, Show, onCleanup } from "solid-js"
 import browser from "webextension-polyfill"
-import { CanvasLink } from "./CanvasLink"
+import { CaseView } from "./CaseView"
 import { AccountView } from "./AccountView"
 import { getPermissions, setPermissions, revokeAll, getSettings, saveSettings } from "../content/permissions"
 import { refresh, state } from "../content/core"
@@ -294,7 +294,7 @@ export function Overlay() {
             }>
               <section>
                 <Show when={state.page?.objectType === "Account"} fallback={
-                  <CanvasLink onDrawerToggle={setDrawerOpen} />
+                  <CaseView onDrawerToggle={setDrawerOpen} />
                 }>
                   <AccountView />
                 </Show>

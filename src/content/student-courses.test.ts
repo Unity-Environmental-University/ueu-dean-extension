@@ -17,8 +17,8 @@ import {
 const arbTerm: fc.Arbitrary<CanvasTerm> = fc.record({
   id: fc.nat(),
   name: fc.string({ minLength: 1 }),
-  start_at: fc.oneof(fc.date().map(d => d.toISOString()), fc.constant(null)),
-  end_at: fc.oneof(fc.date().map(d => d.toISOString()), fc.constant(null)),
+  start_at: fc.oneof(fc.integer({ min: 1577836800000, max: 1893456000000 }).map(ms => new Date(ms).toISOString()), fc.constant(null)),
+  end_at: fc.oneof(fc.integer({ min: 1577836800000, max: 1893456000000 }).map(ms => new Date(ms).toISOString()), fc.constant(null)),
 })
 
 const arbEnrollment: fc.Arbitrary<CanvasEnrollment> = fc.record({

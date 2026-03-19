@@ -1,7 +1,8 @@
 /**
- * CaseView — reads from the reactive API-driven state.
+ * CaseView — the full case page view.
  *
- * Shows case info, dishonesty details, and Canvas link.
+ * Shows case info, dishonesty details, grade appeals, Canvas links,
+ * instructor, and prior cases drawer.
  * All data comes from SF REST API — no DOM scraping.
  */
 
@@ -17,7 +18,7 @@ const INCIDENT_LABELS: Record<string, string> = {
   other: "Other",
 }
 
-export function CanvasLink(props: { onDrawerToggle?: (open: boolean) => void }) {
+export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
   const [version, setVersion] = createSignal(0)
   const bump = () => setVersion(v => v + 1)
   state.listeners.add(bump)
