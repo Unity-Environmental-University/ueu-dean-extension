@@ -241,10 +241,17 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                       </div>
                       <div class="ueu-history-card-detail">
                         <span class="ueu-history-type">{c.type}{c.subType ? ` · ${c.subType}` : ""}</span>
-                        <Show when={c.termName || c.courseName}>
-                          <span class="ueu-history-term">{c.termName ?? c.courseName}</span>
-                        </Show>
                       </div>
+                      <Show when={c.courseName || c.termName}>
+                        <div class="ueu-history-card-course">
+                          <Show when={c.courseName}>
+                            <span class="ueu-history-course">{c.courseName}</span>
+                          </Show>
+                          <Show when={c.termName}>
+                            <span class="ueu-history-term-tag">{c.termName}</span>
+                          </Show>
+                        </div>
+                      </Show>
                     </li>
                   )
                 }}

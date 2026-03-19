@@ -350,10 +350,27 @@
   color: #666;
 }
 
-.ueu-history-term {
+.ueu-history-card-course {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+  flex-wrap: wrap;
+}
+
+.ueu-history-course {
   font-size: 0.7rem;
-  color: #999;
-  font-style: italic;
+  color: #555;
+}
+
+.ueu-history-term-tag {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #2d6a4f;
+  background: #e8f5ee;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  white-space: nowrap;
 }
 
 .ueu-history-right {
