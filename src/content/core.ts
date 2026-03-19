@@ -491,6 +491,18 @@ async function resolveCanvasFromCo(coId: string, onName: (name: string) => void)
       return null
     }
 
+    // Discover term-related fields on CourseOffering
+    const coFieldMap = await describeObject("CourseOffering").catch(() => null)
+    if (coFieldMap) {
+      const termFields: string[] = []
+      for (const [label, info] of coFieldMap) {
+        if (label.includes("term") || info.name.toLowerCase().includes("term")) {
+          termFields.push(`${info.name} (label: "${label}", type: ${info.type})`)
+        }
+      }
+      diag(log, "co-term-fields", termFields.length > 0 ? termFields.join("; ") : "none found")
+    }
+
     diag(log, "canvas-id-resolved", canvasId)
     state.diagnostics.push(...log)
     observeFields("CourseOffering", log)
