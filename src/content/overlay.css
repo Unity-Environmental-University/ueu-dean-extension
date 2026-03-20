@@ -1049,3 +1049,71 @@
   background: #f0f0f0;
   border-radius: 3px;
 }
+
+/* ── CourseOffering view ── */
+
+.ueu-co-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.ueu-co-instructor {
+  color: #333;
+}
+
+.ueu-roster {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.ueu-roster-th {
+  text-align: left;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 2px solid #e5e7eb;
+  color: #555;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ueu-roster-th:hover {
+  color: #2d6a4f;
+}
+
+.ueu-roster-th-active {
+  color: #2d6a4f;
+}
+
+.ueu-roster-row {
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.ueu-roster-row:hover {
+  background: #f9fafb;
+}
+
+.ueu-roster-name {
+  padding: 0.3rem 0.4rem;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ueu-roster-score {
+  padding: 0.3rem 0.4rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ueu-roster-lda {
+  padding: 0.3rem 0.4rem;
+  color: #666;
+  white-space: nowrap;
+}

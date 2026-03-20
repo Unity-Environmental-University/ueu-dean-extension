@@ -8,6 +8,7 @@ import { createSignal, createResource, Show, onCleanup } from "solid-js"
 import browser from "webextension-polyfill"
 import { CaseView } from "./CaseView"
 import { AccountView } from "./AccountView"
+import { CourseOfferingView } from "./CourseOfferingView"
 import { getPermissions, setPermissions, revokeAll, getSettings, saveSettings } from "../content/permissions"
 import { refresh, state } from "../content/core"
 
@@ -294,7 +295,11 @@ export function Overlay() {
             }>
               <section>
                 <Show when={state.page?.objectType === "Account"} fallback={
-                  <CaseView onDrawerToggle={setDrawerOpen} />
+                  <Show when={state.page?.objectType === "CourseOffering"} fallback={
+                    <CaseView onDrawerToggle={setDrawerOpen} />
+                  }>
+                    <CourseOfferingView />
+                  </Show>
                 }>
                   <AccountView />
                 </Show>

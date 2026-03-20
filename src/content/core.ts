@@ -12,6 +12,7 @@ import { pick, diag, makeFieldAccessor, type DiagLog, type DiagEntry } from "./r
 import { observeFields, observeCaseComplete } from "./observer"
 import { loadAccountCourses, type AccountResult } from "./load-account"
 import { loadCase as loadCaseImpl, type CasePatch } from "./load-case"
+import { loadCourseOffering as loadCourseOfferingImpl, type CourseOfferingResult } from "./load-course-offering"
 import type { TermGroup } from "./student-courses"
 
 const CANVAS_HOST = "unity.instructure.com"
@@ -108,8 +109,12 @@ export const state = {
     canvasUserId: string | null
     accountName: string | null
     termGroups: TermGroup[]
+    lastActivityAt: string | null
     error: string | null
   } | null,
+
+  /** CourseOffering page data — roster + grades */
+  offeringData: null as CourseOfferingResult | null,
 
   /** Raw Contact record for debugging */
   contactRaw: null as Record<string, unknown> | null,
@@ -207,34 +212,39 @@ async function loadCourseOffering(recordId: string, token: number) {
   state.loading = true
   state.error = null
   state.canvas = null
+  state.offeringData = null
   state.diagnostics = []
   state.notify()
 
-  try {
-    const co = await getRecord<Record<string, unknown>>("CourseOffering", recordId)
-    if (stale(token)) return
-    const coLog: DiagLog = []
-    const canvasId = pick(coLog, co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
-    if (canvasId) {
-      state.canvas = {
-        courseId: canvasId,
-        url: `https://unity.instructure.com/courses/${canvasId}`,
-        enrollmentUrl: null,
-        studentId: null,
-        studentName: null,
-      }
+  const result = await loadCourseOfferingImpl(recordId, {
+    getRecord,
+    sfQuery,
+    canvasFetch,
+    isStale: () => stale(token),
+  })
+
+  if (stale(token)) return
+
+  state.offeringData = result
+  state.diagnostics.push(...result.diagnostics)
+
+  if (result.canvasCourseId) {
+    state.canvas = {
+      courseId: result.canvasCourseId,
+      url: result.canvasCourseUrl!,
+      enrollmentUrl: null,
+      studentId: null,
+      studentName: null,
+      studentPronouns: null,
     }
-    state.diagnostics.push(...coLog)
-    state.loading = false
-    state.notify()
-    observeFields("CourseOffering", coLog)
-  } catch (e) {
-    if (stale(token)) return
-    state.loading = false
-    state.error = e instanceof Error ? e.message : String(e)
-    state.notify()
-    console.error("[UEU] Failed to load course offering:", e)
   }
+
+  if (result.error && result.error !== "canvas-session-required") {
+    state.error = result.error
+  }
+
+  state.loading = false
+  state.notify()
 }
 
 async function loadTerm(recordId: string, token: number) {
