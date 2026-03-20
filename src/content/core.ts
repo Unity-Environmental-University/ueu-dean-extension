@@ -602,7 +602,7 @@ async function loadPriorCases(contactId: string, _currentCaseId: string, token: 
       courseName: r.Course_Offering__r?.Name ?? null,
       courseCode: extractCourseCode(r.Course_Offering__r?.Name ?? null),
       courseOfferingId: r.Course_Offering__c ?? null,
-      termName: r.Course_Offering__r?.Academic_Term_Display_Name__c ?? null,
+      termName: cleanTermName(r.Course_Offering__r?.Academic_Term_Display_Name__c ?? null),
     }))
     diag(state.diagnostics, "prior-cases", `found ${state.priorCases.length} prior case(s)`)
   } catch (e) {
@@ -611,6 +611,13 @@ async function loadPriorCases(contactId: string, _currentCaseId: string, token: 
   }
   state.loadingPriorCases = false
   state.notify()
+}
+
+/** Strip the human-readable date suffix from a term display name, keeping the internal code.
+ *  "DE5W04.07.25- April 7, 2025" → "DE5W04.07.25" */
+function cleanTermName(name: string | null): string | null {
+  if (!name) return null
+  return name.replace(/\s*-\s*[A-Za-z].*$/, "").trim()
 }
 
 /** Extract a short course code like "ENGL101" from a full offering name */

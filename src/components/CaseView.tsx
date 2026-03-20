@@ -18,6 +18,22 @@ const INCIDENT_LABELS: Record<string, string> = {
   other: "Other",
 }
 
+const SKIP = new Set(["a", "an", "the", "of", "from", "and", "or", "in", "at", "to"])
+
+const ABBREV: Record<string, string> = {
+  "distance education": "DE",
+}
+
+function acronym(phrase: string): string {
+  const known = ABBREV[phrase.toLowerCase()]
+  if (known) return known
+  return phrase
+    .split(/\s+/)
+    .filter(w => !SKIP.has(w.toLowerCase()))
+    .map(w => w[0].toUpperCase() + w.slice(1, 3).toLowerCase())
+    .join(" ")
+}
+
 export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
   const [version, setVersion] = createSignal(0)
   const bump = () => setVersion(v => v + 1)
@@ -240,7 +256,9 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                         </span>
                       </div>
                       <div class="ueu-history-card-detail">
-                        <span class="ueu-history-type">{c.type}{c.subType ? ` · ${c.subType}` : ""}</span>
+                        <span class="ueu-history-type" title={`${c.type}${c.subType ? ` · ${c.subType}` : ""}`}>
+                          {acronym(c.type)}{c.subType ? ` · ${acronym(c.subType)}` : ""}
+                        </span>
                       </div>
                       <Show when={c.courseCode || c.courseName || c.termName}>
                         <div class="ueu-history-card-course">
