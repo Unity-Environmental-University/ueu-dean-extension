@@ -9,20 +9,51 @@ import browser from "webextension-polyfill"
 import { state, refresh } from "../content/core"
 import { isCurrentTerm, termAverage } from "../content/student-courses"
 
+function scoreColor(score: number | null): string {
+  if (score === null) return "#888"
+  if (score >= 90) return "#16a34a"
+  if (score >= 80) return "#65a30d"
+  if (score >= 70) return "#ca8a04"
+  if (score >= 60) return "#ea580c"
+  return "#dc2626"
+}
+
+function formatScore(score: number | null): string {
+  if (score === null) return "—"
+  return score.toFixed(1) + "%"
+}
+
+function formatLda(iso: string | null): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+}
+
 export function AccountView() {
   const [version, setVersion] = createSignal(0)
   const bump = () => setVersion(v => v + 1)
   state.listeners.add(bump)
   onCleanup(() => state.listeners.delete(bump))
 
+  const [selectedTerm, setSelectedTerm] = createSignal<number | null>(null)
+  const [expandedCourse, setExpandedCourse] = createSignal<number | null>(null)
+
   const accountData = () => { version(); return state.accountData }
   const loading = () => { version(); return state.loading }
   const error = () => { version(); return state.error }
-  const studentError = () => { version(); return state.studentError }
+
+  // Auto-select current term when data loads
+  createEffect(() => {
+    const data = accountData()
+    if (!data || selectedTerm() !== null) return
+    const current = data.termGroups.find(t => isCurrentTerm(t))
+    if (current) setSelectedTerm(current.termId)
+  })
 
   // Poll for Canvas session when auth is needed
   createEffect(() => {
-    if (studentError() !== "canvas-session-required") return
+    const data = accountData()
+    if (data?.error !== "canvas-session-required") return
     const interval = setInterval(async () => {
       const result = await browser.runtime.sendMessage({ type: "canvas-session-check" }) as { hasSession: boolean }
       if (result?.hasSession) {
@@ -33,18 +64,12 @@ export function AccountView() {
     onCleanup(() => clearInterval(interval))
   })
 
-  function scoreColor(score: number | null): string {
-    if (score === null) return "#888"
-    if (score >= 90) return "#16a34a"
-    if (score >= 80) return "#65a30d"
-    if (score >= 70) return "#ca8a04"
-    if (score >= 60) return "#ea580c"
-    return "#dc2626"
-  }
-
-  function formatScore(score: number | null): string {
-    if (score === null) return "—"
-    return score.toFixed(1) + "%"
+  const visibleTerms = () => {
+    const data = accountData()
+    if (!data) return []
+    const sel = selectedTerm()
+    if (sel === null) return data.termGroups
+    return data.termGroups.filter(t => t.termId === sel)
   }
 
   return (
@@ -62,6 +87,14 @@ export function AccountView() {
           <>
             <Show when={data().accountName}>
               <h3 class="ueu-label">{data().accountName}</h3>
+            </Show>
+
+            {/* LDA at top */}
+            <Show when={data().lastActivityAt}>
+              <div class="ueu-lda-banner">
+                <span class="ueu-lda-label">Last activity</span>
+                <span class="ueu-lda-value">{formatLda(data().lastActivityAt)}</span>
+              </div>
             </Show>
 
             <Show when={data().error === "no-canvas-id"}>
@@ -96,9 +129,33 @@ export function AccountView() {
               </div>
             </Show>
 
+            {/* Term filter chips */}
+            <Show when={data().termGroups.length > 1}>
+              <div class="ueu-term-chips">
+                <button
+                  class="ueu-chip"
+                  classList={{"ueu-chip-active": selectedTerm() === null}}
+                  onClick={() => setSelectedTerm(null)}
+                >
+                  All
+                </button>
+                <For each={data().termGroups}>
+                  {term => (
+                    <button
+                      class="ueu-chip"
+                      classList={{"ueu-chip-active": selectedTerm() === term.termId}}
+                      onClick={() => setSelectedTerm(term.termId)}
+                    >
+                      {term.termName}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </Show>
+
             {/* Term groups */}
             <Show when={data().termGroups.length > 0}>
-              <For each={data().termGroups}>
+              <For each={visibleTerms()}>
                 {(term, i) => {
                   const current = isCurrentTerm(term)
                   const avg = termAverage(term)
@@ -119,29 +176,50 @@ export function AccountView() {
                       </div>
                       <ul class="ueu-course-list">
                         <For each={term.courses}>
-                          {course => (
-                            <li class="ueu-course-card">
-                              <div class="ueu-course-name">
-                                <a
-                                  href={`https://unity.instructure.com/courses/${course.courseId}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  class="ueu-course-link"
+                          {course => {
+                            const expanded = () => expandedCourse() === course.courseId
+                            return (
+                              <li class="ueu-course-card" classList={{"ueu-course-expanded": expanded()}}>
+                                <button
+                                  class="ueu-course-row"
+                                  onClick={() => setExpandedCourse(expanded() ? null : course.courseId)}
+                                  aria-expanded={expanded()}
                                 >
-                                  {course.name}
-                                </a>
-                                <span class="ueu-pill" data-status={course.enrollmentState}>{course.enrollmentState}</span>
-                              </div>
-                              <div class="ueu-course-scores">
-                                <span class="ueu-score" style={{"color": scoreColor(course.currentScore)}}>
-                                  {formatScore(course.currentScore)}
-                                </span>
-                                <Show when={course.currentGrade}>
-                                  <span class="ueu-grade">{course.currentGrade}</span>
+                                  <div class="ueu-course-name">
+                                    <span class="ueu-course-link">{course.name}</span>
+                                    <span class="ueu-pill" data-status={course.enrollmentState}>{course.enrollmentState}</span>
+                                  </div>
+                                  <div class="ueu-course-scores">
+                                    <span class="ueu-score" style={{"color": scoreColor(course.currentScore)}}>
+                                      {formatScore(course.currentScore)}
+                                    </span>
+                                    <Show when={course.currentGrade}>
+                                      <span class="ueu-grade">{course.currentGrade}</span>
+                                    </Show>
+                                  </div>
+                                </button>
+
+                                <Show when={expanded()}>
+                                  <div class="ueu-course-detail">
+                                    <div class="ueu-detail-row">
+                                      <span class="ueu-detail-label">Last activity</span>
+                                      <span class="ueu-detail-value">{formatLda(course.lastActivityAt)}</span>
+                                    </div>
+                                    <div class="ueu-detail-row">
+                                      <a
+                                        href={`https://unity.instructure.com/courses/${course.courseId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="ueu-canvas-link"
+                                      >
+                                        Open in Canvas &rarr;
+                                      </a>
+                                    </div>
+                                  </div>
                                 </Show>
-                              </div>
-                            </li>
-                          )}
+                              </li>
+                            )
+                          }}
                         </For>
                       </ul>
                     </article>
@@ -157,7 +235,6 @@ export function AccountView() {
         )}
       </Show>
 
-      {/* No data state */}
       <Show when={!loading() && !accountData() && !error()}>
         <p class="ueu-muted">Loading account...</p>
       </Show>

@@ -361,6 +361,16 @@
 .ueu-history-course {
   font-size: 0.7rem;
   color: #555;
+  font-weight: 600;
+}
+
+.ueu-history-course-link {
+  text-decoration: none;
+  color: #2d6a4f;
+}
+
+.ueu-history-course-link:hover {
+  text-decoration: underline;
 }
 
 .ueu-history-term-tag {
@@ -832,6 +842,67 @@
   margin-top: 6px;
 }
 
+/* ── Account view: LDA banner ── */
+
+.ueu-lda-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.35rem 0.6rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+
+.ueu-lda-label {
+  color: #166534;
+  font-weight: 500;
+}
+
+.ueu-lda-value {
+  color: #15803d;
+  font-weight: 700;
+}
+
+/* ── Account view: term filter chips ── */
+
+.ueu-term-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.ueu-chip {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #555;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.ueu-chip:hover {
+  border-color: #2d6a4f;
+  color: #2d6a4f;
+}
+
+.ueu-chip-active {
+  background: #2d6a4f;
+  border-color: #2d6a4f;
+  color: white;
+}
+
+.ueu-chip-active:hover {
+  background: #1e4d38;
+  color: white;
+}
+
 /* ── Account view: term groups ── */
 
 .ueu-term-group {
@@ -881,20 +952,32 @@
 }
 
 .ueu-course-card {
+  background: white;
+  border-radius: 5px;
+  border: 1px solid #eee;
+  overflow: hidden;
+  transition: box-shadow 300ms ease;
+}
+
+.ueu-course-card:hover {
+  box-shadow: var(--shadow-rest, 0 1px 3px rgba(0,0,0,0.08));
+}
+
+.ueu-course-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0.35rem 0.5rem;
-  background: white;
-  border-radius: 5px;
-  border: 1px solid #eee;
-  transition: transform 400ms var(--ease-spring),
-              box-shadow 400ms var(--ease-heavy);
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  gap: 0.5rem;
 }
 
-.ueu-course-card:hover {
-  transform: translateX(3px);
-  box-shadow: var(--shadow-rest, 0 1px 3px rgba(0,0,0,0.08));
+.ueu-course-row:hover {
+  background: #f9fafb;
 }
 
 .ueu-course-name {
@@ -924,6 +1007,32 @@
   align-items: center;
   gap: 0.4rem;
   flex-shrink: 0;
+}
+
+.ueu-course-detail {
+  border-top: 1px solid #eee;
+  padding: 0.4rem 0.5rem;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ueu-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.ueu-detail-label {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.ueu-detail-value {
+  color: #222;
+  font-weight: 500;
 }
 
 .ueu-score {

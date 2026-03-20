@@ -18,6 +18,7 @@ export interface CanvasEnrollment {
   computed_final_score: number | null
   computed_current_grade: string | null
   computed_final_grade: string | null
+  last_activity_at: string | null
 }
 
 export interface CanvasCourse {
@@ -38,6 +39,7 @@ export interface CourseView {
   currentGrade: string | null
   finalGrade: string | null
   enrollmentState: string
+  lastActivityAt: string | null
 }
 
 export interface TermGroup {
@@ -66,6 +68,7 @@ export function toCourseView(course: CanvasCourse): CourseView {
     currentGrade: enrollment?.computed_current_grade ?? null,
     finalGrade: enrollment?.computed_final_grade ?? null,
     enrollmentState: enrollment?.enrollment_state ?? "unknown",
+    lastActivityAt: enrollment?.last_activity_at ?? null,
   }
 }
 
@@ -111,6 +114,19 @@ export function isCurrentTerm(term: TermGroup, now: Date = new Date()): boolean 
   const start = new Date(term.startAt)
   // If term has started and either has no end or hasn't ended yet
   return start <= now
+}
+
+/** Most recent last_activity_at across all courses in all terms */
+export function overallLda(termGroups: TermGroup[]): string | null {
+  let latest: string | null = null
+  for (const term of termGroups) {
+    for (const course of term.courses) {
+      if (course.lastActivityAt) {
+        if (!latest || course.lastActivityAt > latest) latest = course.lastActivityAt
+      }
+    }
+  }
+  return latest
 }
 
 /** Compute term GPA-like summary: average of non-null current scores */

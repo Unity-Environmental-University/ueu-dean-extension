@@ -242,10 +242,15 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                       <div class="ueu-history-card-detail">
                         <span class="ueu-history-type">{c.type}{c.subType ? ` · ${c.subType}` : ""}</span>
                       </div>
-                      <Show when={c.courseName || c.termName}>
+                      <Show when={c.courseCode || c.courseName || c.termName}>
                         <div class="ueu-history-card-course">
-                          <Show when={c.courseName}>
-                            <span class="ueu-history-course">{c.courseName}</span>
+                          <Show when={c.courseCode || c.courseName}>
+                            {() => {
+                              const label = c.courseCode ?? c.courseName!
+                              return c.courseOfferingId
+                                ? <a href={`/lightning/r/hed__Course_Offering__c/${c.courseOfferingId}/view`} target="_blank" rel="noopener noreferrer" class="ueu-history-course ueu-history-course-link">{label}</a>
+                                : <span class="ueu-history-course">{label}</span>
+                            }}
                           </Show>
                           <Show when={c.termName}>
                             <span class="ueu-history-term-tag">{c.termName}</span>

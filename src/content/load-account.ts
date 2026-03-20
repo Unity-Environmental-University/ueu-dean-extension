@@ -7,13 +7,14 @@
  * Pure async function with injected dependencies for testability.
  */
 
-import { groupByTerm, type CanvasCourse, type TermGroup } from "./student-courses"
+import { groupByTerm, overallLda, type CanvasCourse, type TermGroup } from "./student-courses"
 import { pick, type DiagLog } from "./resolve"
 
 export interface AccountResult {
   canvasUserId: string | null
   accountName: string | null
   termGroups: TermGroup[]
+  lastActivityAt: string | null
   error: string | null
   diagnostics: DiagLog
 }
@@ -34,7 +35,7 @@ export async function loadAccountCourses(
   deps: LoadAccountDeps,
 ): Promise<AccountResult> {
   const diagnostics: DiagLog = []
-  const empty: AccountResult = { canvasUserId: null, accountName: null, termGroups: [], error: null, diagnostics }
+  const empty: AccountResult = { canvasUserId: null, accountName: null, termGroups: [], lastActivityAt: null, error: null, diagnostics }
 
   // 1. Fetch SF Account
   let account: Record<string, unknown>
@@ -60,7 +61,7 @@ export async function loadAccountCourses(
   let courses: CanvasCourse[]
   try {
     courses = await deps.canvasFetch<CanvasCourse[]>(
-      `/api/v1/users/${canvasUserId}/courses?include[]=term&include[]=total_scores&include[]=computed_current_score&per_page=100&state[]=available&state[]=completed`
+      `/api/v1/users/${canvasUserId}/courses?include[]=term&include[]=total_scores&include[]=computed_current_score&include[]=enrollments&per_page=100&state[]=available&state[]=completed`
     )
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -74,6 +75,7 @@ export async function loadAccountCourses(
 
   // 4. Group by term
   const termGroups = groupByTerm(courses)
+  const lastActivityAt = overallLda(termGroups)
 
-  return { canvasUserId, accountName, termGroups, error: null, diagnostics }
+  return { canvasUserId, accountName, termGroups, lastActivityAt, error: null, diagnostics }
 }

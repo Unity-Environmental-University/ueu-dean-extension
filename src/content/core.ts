@@ -55,6 +55,8 @@ export const state = {
     status: string
     createdDate: string
     courseName: string | null
+    courseCode: string | null
+    courseOfferingId: string | null
     termName: string | null
   }> | null,
   loadingPriorCases: false,
@@ -582,10 +584,11 @@ async function loadPriorCases(contactId: string, _currentCaseId: string, token: 
   state.loadingPriorCases = true
   state.notify()
   try {
-    const soql = `SELECT Id, CaseNumber, Type, SubType__c, Status, CreatedDate, Course_Offering__r.Name, Course_Offering__r.Academic_Term_Display_Name__c FROM Case WHERE ContactId = '${contactId}' ORDER BY CreatedDate DESC LIMIT 25`
+    const soql = `SELECT Id, CaseNumber, Type, SubType__c, Status, CreatedDate, Course_Offering__c, Course_Offering__r.Name, Course_Offering__r.Academic_Term_Display_Name__c FROM Case WHERE ContactId = '${contactId}' ORDER BY CreatedDate DESC LIMIT 25`
     const result = await sfQuery<{
       Id: string; CaseNumber: string; Type: string
       SubType__c: string | null; Status: string; CreatedDate: string
+      Course_Offering__c: string | null
       Course_Offering__r?: { Name?: string; Academic_Term_Display_Name__c?: string }
     }>(soql)
     if (stale(token)) return
@@ -597,6 +600,8 @@ async function loadPriorCases(contactId: string, _currentCaseId: string, token: 
       status: r.Status,
       createdDate: r.CreatedDate,
       courseName: r.Course_Offering__r?.Name ?? null,
+      courseCode: extractCourseCode(r.Course_Offering__r?.Name ?? null),
+      courseOfferingId: r.Course_Offering__c ?? null,
       termName: r.Course_Offering__r?.Academic_Term_Display_Name__c ?? null,
     }))
     diag(state.diagnostics, "prior-cases", `found ${state.priorCases.length} prior case(s)`)
@@ -606,6 +611,13 @@ async function loadPriorCases(contactId: string, _currentCaseId: string, token: 
   }
   state.loadingPriorCases = false
   state.notify()
+}
+
+/** Extract a short course code like "ENGL101" from a full offering name */
+function extractCourseCode(name: string | null): string | null {
+  if (!name) return null
+  const match = name.match(/([A-Z]{3,4}\d{3,4}).*\s-\s(\d+)/i)
+  return match ? `${match[1]} - ${match[2]}` : null
 }
 
 async function loadCase(recordId: string, token: number) {
@@ -879,10 +891,36 @@ async function loadAccount(recordId: string, token: number) {
 
   if (stale(token)) return
 
+  // If Canvas ID missing on first try, retry once after 2s — SF SPA pages sometimes
+  // settle the record data after initial render
+  if (result.error === "no-canvas-id" && !stale(token)) {
+    await new Promise(r => setTimeout(r, 2000))
+    if (stale(token)) return
+    const retry = await loadAccountCourses(recordId, {
+      getRecord,
+      canvasFetch,
+      isStale: () => stale(token),
+    })
+    if (!stale(token) && retry.canvasUserId) {
+      state.accountData = {
+        canvasUserId: retry.canvasUserId,
+        accountName: retry.accountName,
+        termGroups: retry.termGroups,
+        lastActivityAt: retry.lastActivityAt,
+        error: retry.error,
+      }
+      state.diagnostics.push(...retry.diagnostics)
+      state.loading = false
+      state.notify()
+      return
+    }
+  }
+
   state.accountData = {
     canvasUserId: result.canvasUserId,
     accountName: result.accountName,
     termGroups: result.termGroups,
+    lastActivityAt: result.lastActivityAt,
     error: result.error,
   }
   state.diagnostics.push(...result.diagnostics)
