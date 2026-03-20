@@ -9,6 +9,7 @@
 
 import { pick, type DiagLog } from "./resolve"
 import type { SoqlResult } from "./sfapi"
+import { cleanTermName } from "./field-utils"
 
 export interface LoadCourseOfferingDeps {
   getRecord: <T>(objectType: string, id: string) => Promise<T>
@@ -53,11 +54,6 @@ interface CanvasEnrollmentEntry {
   enrollment_state: string
 }
 
-/** Clean internal term code suffix from display name */
-function cleanTermName(name: string | null): string | null {
-  if (!name) return null
-  return name.replace(/\s*-\s*[A-Za-z].*$/, "").trim()
-}
 
 export async function loadCourseOffering(
   recordId: string,

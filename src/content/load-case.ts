@@ -7,6 +7,7 @@
 
 import { pick, diag, makeFieldAccessor, type DiagLog, type DiagEntry } from "./resolve"
 import type { SoqlResult } from "./sfapi"
+import { cleanTermName } from "./field-utils"
 
 // ── Dep injection interface ───────────────────────────────────────────────────
 
@@ -134,10 +135,6 @@ function findExactEmailMatch(
   return null
 }
 
-function cleanTermName(name: string | null): string | null {
-  if (!name) return null
-  return name.replace(/\s*-\s*[A-Za-z].*$/, "").trim()
-}
 
 function extractCourseCode(name: string | null): string | null {
   if (!name) return null
@@ -684,7 +681,6 @@ export async function loadCase(recordId: string, deps: LoadCaseDeps): Promise<vo
 
     const resolvedContactId = rawContactId ?? copContactId
     diag([], "prior-cases-contact", `rawContactId=${rawContactId ?? "null"} copContactId=${copContactId ?? "null"} resolved=${resolvedContactId ?? "null"}`)
-    console.log("[UEU] prior-cases-contact", { rawContactId, copContactId, resolvedContactId })
     if (resolvedContactId) {
       loadPriorCases(resolvedContactId, recordId, deps)
     } else {

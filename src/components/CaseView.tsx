@@ -59,22 +59,22 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
   // Drawer state
   const [drawerOpen, setDrawerOpen] = createSignal(false)
   const [subTypeFilter, setSubTypeFilter] = createSignal("")
+  // null = settings not yet loaded; "" = user explicitly chose All; string = sticky choice
+  const [stickyLoaded, setStickyLoaded] = createSignal<string | null>(null)
 
-  // Load sticky filter, then auto-select current case's subtype if no sticky value
   getSettings().then(s => {
-    if (s.historySubTypeFilter) {
-      setSubTypeFilter(s.historySubTypeFilter)
-    }
+    const saved = s.historySubTypeFilter ?? ""
+    setStickyLoaded(saved)
+    if (saved) setSubTypeFilter(saved)
   })
 
-  // Auto-select current case's subtype on first load only (not when user clicks "All")
-  let hasAutoSelected = false
+  // Auto-select current case's subtype — only if settings loaded with no preference
   createEffect(() => {
+    const sticky = stickyLoaded()
+    if (sticky === null) return          // settings not yet loaded — wait
+    if (sticky !== "") return            // user has a saved preference — honour it
     const sub = caseData()?.subType
-    if (sub && !hasAutoSelected && !subTypeFilter()) {
-      hasAutoSelected = true
-      setSubTypeFilter(sub)
-    }
+    if (sub && !subTypeFilter()) setSubTypeFilter(sub)
   })
 
   function toggleDrawer() {
