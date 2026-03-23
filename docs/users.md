@@ -75,3 +75,8 @@ The reactive state pattern (plain object + listeners + version signal) was chose
 ## The Blind Spot
 
 Students are the most affected stakeholder and the only one who never uses the tool. The extension reads their grades, messages, and activity — they don't know. This is not currently addressed. It may be a Canvas-level concern (masquerade is a Canvas permission, not ours), but it's worth naming: **the tool's power comes from asymmetric visibility, and that asymmetry should be held with care.**
+
+Specific tensions:
+- **No audit trail in the extension.** Canvas may log masquerade events, but the extension doesn't surface or record when conversations are viewed. A dean reading student messages leaves no trace in our system.
+- **Grades vs. messages.** Viewing grades extends visibility an instructor already has. Reading private student-instructor conversations is qualitatively different — neither party knows.
+- **Binary permission model.** Canvas masquerade is all-or-nothing. There's no "grades but not messages" tier. The extension inherits this, but could choose to gate message access separately if the asymmetry proves uncomfortable.
