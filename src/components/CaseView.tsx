@@ -8,7 +8,7 @@
 
 import { createSignal, onCleanup, Show, createEffect, For, createMemo } from "solid-js"
 import browser from "webextension-polyfill"
-import { state, refresh } from "../content/core"
+import { state, refresh, loadConversations } from "../content/core"
 import { getSettings, saveSettings } from "../content/permissions"
 
 const INCIDENT_LABELS: Record<string, string> = {
@@ -54,6 +54,10 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
   const priorCases = () => { version(); return state.priorCases }
   const loadingPriorCases = () => { version(); return state.loadingPriorCases }
   const instructor = () => { version(); return state.instructor }
+  const canMasquerade = () => { version(); return state.canMasquerade }
+  const conversations = () => { version(); return state.conversations }
+  const loadingConversations = () => { version(); return state.loadingConversations }
+  const conversationError = () => { version(); return state.conversationError }
   const anyError = () => error() || courseOfferingError() || (studentError() && studentError() !== "canvas-session-required")
 
   // Drawer state
@@ -393,14 +397,74 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                   <a href={`https://unity.instructure.com/users/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                     Profile &rarr;
                   </a>
-                  <a href={`https://unity.instructure.com/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                    Act as &rarr;
-                  </a>
+                  <Show when={canMasquerade()}>
+                    <a href={`https://unity.instructure.com/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                      Act as &rarr;
+                    </a>
+                  </Show>
                 </div>
               </Show>
             </Show>
           </article>
         )}
+      </Show>
+
+      {/* Canvas Messages — shown when masquerade available + student + instructor IDs known */}
+      <Show when={canMasquerade() && canvas()?.studentId && instructor()?.canvasId}>
+        <article>
+          <h3 class="ueu-label">Messages</h3>
+          <Show when={!conversations() && !loadingConversations()}>
+            <button
+              class="ueu-btn-messages"
+              onClick={() => loadConversations(canvas()!.studentId!, instructor()!.canvasId!)}
+            >
+              View instructor ↔ student messages
+            </button>
+          </Show>
+          <Show when={loadingConversations()}>
+            <p class="ueu-loading">Loading messages&hellip;</p>
+          </Show>
+          <Show when={conversationError()}>
+            <p class="ueu-warn">{conversationError()}</p>
+          </Show>
+          <Show when={conversations()}>
+            {convos => (
+              <Show
+                when={convos().length > 0}
+                fallback={<p class="ueu-muted">No messages found between student and instructor.</p>}
+              >
+                <For each={convos()}>
+                  {convo => (
+                    <div class="ueu-convo">
+                      <div class="ueu-convo-header">
+                        <span class="ueu-convo-subject">{convo.subject || "(no subject)"}</span>
+                        <span class="ueu-convo-count">{convo.message_count} msg{convo.message_count !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div class="ueu-convo-messages">
+                        <For each={[...convo.messages].reverse().filter(m => !m.generated)}>
+                          {msg => {
+                            const author = convo.participants.find(p => p.id === msg.author_id)
+                            const d = new Date(msg.created_at)
+                            const dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+                            return (
+                              <div class="ueu-msg">
+                                <div class="ueu-msg-meta">
+                                  <span class="ueu-msg-author">{author?.name ?? `User ${msg.author_id}`}</span>
+                                  <span class="ueu-msg-date">{dateStr}</span>
+                                </div>
+                                <p class="ueu-msg-body">{msg.body}</p>
+                              </div>
+                            )
+                          }}
+                        </For>
+                      </div>
+                    </div>
+                  )}
+                </For>
+              </Show>
+            )}
+          </Show>
+        </article>
       </Show>
 
       {/* Instructor */}
@@ -419,9 +483,11 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                     In Course &rarr;
                   </a>
                 </Show>
-                <a href={`https://unity.instructure.com/users/${i().canvasId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                  Act as &rarr;
-                </a>
+                <Show when={canMasquerade()}>
+                  <a href={`https://unity.instructure.com/users/${i().canvasId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                    Act as &rarr;
+                  </a>
+                </Show>
               </div>
             </Show>
             <Show when={i().email}>

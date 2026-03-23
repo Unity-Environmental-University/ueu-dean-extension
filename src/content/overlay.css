@@ -1117,3 +1117,115 @@
   color: #666;
   white-space: nowrap;
 }
+
+/* ── Canvas conversations ──────────────────────────────────────────────────── */
+
+.ueu-btn-messages {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+.ueu-btn-messages:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.ueu-convo {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.ueu-convo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ueu-convo-subject {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #111827;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ueu-convo-count {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+}
+
+.ueu-convo-messages {
+  padding: 0.25rem 0;
+}
+
+.ueu-msg {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.ueu-msg:last-child {
+  border-bottom: none;
+}
+
+.ueu-msg-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+}
+
+.ueu-msg-author {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.ueu-msg-date {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.ueu-msg-body {
+  font-size: 0.78rem;
+  color: #4b5563;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 6rem;
+  overflow: hidden;
+}
+
+/* Account inbox — compact conversation list */
+.ueu-convo-list {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ueu-convo-preview {
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.ueu-convo-preview:last-child {
+  border-bottom: none;
+}
+
+.ueu-convo-meta {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  margin-top: 0.1rem;
+}

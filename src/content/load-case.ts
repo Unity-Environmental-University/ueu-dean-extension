@@ -8,6 +8,7 @@
 import { pick, diag, makeFieldAccessor, type DiagLog, type DiagEntry } from "./resolve"
 import type { SoqlResult } from "./sfapi"
 import { cleanTermName } from "./field-utils"
+import { probeCanvasMasquerade } from "./load-canvas-messages"
 
 // ── Dep injection interface ───────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ export interface CasePatch {
   priorCases?: PriorCase[] | null
   copRaw?: Record<string, unknown> | null
   contactRaw?: Record<string, unknown> | null
+  canMasquerade?: boolean | null
   diagnostics?: DiagEntry[]
 }
 
@@ -678,6 +680,12 @@ export async function loadCase(recordId: string, deps: LoadCaseDeps): Promise<vo
     }
 
     deps.onUpdate({ loading: false })
+
+    // Probe masquerade permission using student's Canvas ID (if available)
+    if (canvas?.studentId) {
+      const canMasquerade = await probeCanvasMasquerade(canvas.studentId, deps)
+      if (!deps.isStale()) deps.onUpdate({ canMasquerade })
+    }
 
     const resolvedContactId = rawContactId ?? copContactId
     diag([], "prior-cases-contact", `rawContactId=${rawContactId ?? "null"} copContactId=${copContactId ?? "null"} resolved=${resolvedContactId ?? "null"}`)

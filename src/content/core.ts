@@ -13,6 +13,7 @@ import { observeFields, observeCaseComplete } from "./observer"
 import { loadAccountCourses, type AccountResult } from "./load-account"
 import { loadCase as loadCaseImpl, type CasePatch } from "./load-case"
 import { loadCourseOffering as loadCourseOfferingImpl, type CourseOfferingResult } from "./load-course-offering"
+import { probeCanvasMasquerade, loadCanvasConversations, type CanvasConversation } from "./load-canvas-messages"
 import type { TermGroup } from "./student-courses"
 
 const CANVAS_HOST = "unity.instructure.com"
@@ -116,6 +117,14 @@ export const state = {
   /** CourseOffering page data — roster + grades */
   offeringData: null as CourseOfferingResult | null,
 
+  /** Whether the logged-in Canvas user has "Become other users" permission */
+  canMasquerade: null as boolean | null,
+
+  /** Canvas conversations — loaded on demand via loadConversations() */
+  conversations: null as CanvasConversation[] | null,
+  loadingConversations: false,
+  conversationError: null as string | null,
+
   /** Raw Contact record for debugging */
   contactRaw: null as Record<string, unknown> | null,
 
@@ -168,6 +177,7 @@ function applyPatch(patch: CasePatch): void {
   if ("priorCases" in patch) state.priorCases = patch.priorCases!
   if ("copRaw" in patch) state.copRaw = patch.copRaw!
   if ("contactRaw" in patch) state.contactRaw = patch.contactRaw!
+  if ("canMasquerade" in patch) state.canMasquerade = patch.canMasquerade!
   state.notify()
 }
 
@@ -201,6 +211,10 @@ async function loadCaseWrapper(recordId: string, token: number) {
   state.canvas = null
   state.copRaw = null
   state.contactRaw = null
+  state.canMasquerade = null
+  state.conversations = null
+  state.loadingConversations = false
+  state.conversationError = null
   state.diagnostics = []
   state.notify()
 
@@ -278,6 +292,10 @@ async function loadAccount(recordId: string, token: number) {
   state.loading = true
   state.error = null
   state.accountData = null
+  state.canMasquerade = null
+  state.conversations = null
+  state.loadingConversations = false
+  state.conversationError = null
   state.diagnostics = []
   state.notify()
 
@@ -310,6 +328,11 @@ async function loadAccount(recordId: string, token: number) {
       state.diagnostics.push(...retry.diagnostics)
       state.loading = false
       state.notify()
+      // Probe masquerade with confirmed Canvas ID
+      if (state.canMasquerade === null) {
+        state.canMasquerade = await probeCanvasMasquerade(retry.canvasUserId, { canvasFetch, isStale: () => stale(token) })
+        if (!stale(token)) state.notify()
+      }
       return
     }
   }
@@ -329,6 +352,12 @@ async function loadAccount(recordId: string, token: number) {
   }
 
   state.notify()
+
+  // Probe masquerade permission if we have a Canvas ID and haven't probed yet
+  if (result.canvasUserId && state.canMasquerade === null && !result.error) {
+    state.canMasquerade = await probeCanvasMasquerade(result.canvasUserId, { canvasFetch, isStale: () => stale(token) })
+    if (!stale(token)) state.notify()
+  }
 }
 
 let navigateTimer: ReturnType<typeof setTimeout> | null = null
@@ -352,6 +381,9 @@ async function doNavigate() {
       state.instructor = null
       state.canvas = null
       state.accountData = null
+      state.conversations = null
+      state.loadingConversations = false
+      state.conversationError = null
       state.loading = false
       state.error = null
       state.notify()
@@ -416,4 +448,33 @@ export function startWatching() {
   }
 
   window.addEventListener("popstate", () => onNavigate())
+}
+
+/**
+ * Load Canvas conversations on demand.
+ * Called from UI components when the user clicks a "Messages" or "Inbox" button.
+ * studentCanvasId: the student to masquerade as.
+ * instructorCanvasId: if provided, filters to conversations with that instructor only.
+ */
+export async function loadConversations(
+  studentCanvasId: string,
+  instructorCanvasId: string | null,
+): Promise<void> {
+  const token = navToken
+  state.loadingConversations = true
+  state.conversations = null
+  state.conversationError = null
+  state.notify()
+
+  const result = await loadCanvasConversations(studentCanvasId, instructorCanvasId, {
+    canvasFetch,
+    isStale: () => stale(token),
+  })
+
+  if (stale(token)) return
+
+  state.conversations = result.conversations
+  state.conversationError = result.error
+  state.loadingConversations = false
+  state.notify()
 }

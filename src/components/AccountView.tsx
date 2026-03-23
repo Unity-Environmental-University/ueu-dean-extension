@@ -6,7 +6,7 @@
 
 import { createSignal, createEffect, onCleanup, Show, For } from "solid-js"
 import browser from "webextension-polyfill"
-import { state, refresh } from "../content/core"
+import { state, refresh, loadConversations } from "../content/core"
 import { isCurrentTerm, termAverage } from "../content/student-courses"
 
 function scoreColor(score: number | null): string {
@@ -41,6 +41,10 @@ export function AccountView() {
   const accountData = () => { version(); return state.accountData }
   const loading = () => { version(); return state.loading }
   const error = () => { version(); return state.error }
+  const canMasquerade = () => { version(); return state.canMasquerade }
+  const conversations = () => { version(); return state.conversations }
+  const loadingConversations = () => { version(); return state.loadingConversations }
+  const conversationError = () => { version(); return state.conversationError }
 
   // Auto-select current term when data loads
   createEffect(() => {
@@ -119,14 +123,59 @@ export function AccountView() {
 
             {/* Canvas links when we have a user ID */}
             <Show when={data().canvasUserId}>
-              <div class="ueu-canvas-links" style={{"margin-bottom": "0.75rem"}}>
+              <div class="ueu-canvas-links" style={{"margin-bottom": "0.5rem"}}>
                 <a href={`https://unity.instructure.com/users/${data().canvasUserId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                   Profile &rarr;
                 </a>
-                <a href={`https://unity.instructure.com/users/${data().canvasUserId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                  Act as &rarr;
-                </a>
+                <Show when={canMasquerade()}>
+                  <a href={`https://unity.instructure.com/users/${data().canvasUserId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                    Act as &rarr;
+                  </a>
+                </Show>
               </div>
+
+              {/* Inbox — only available with masquerade permission */}
+              <Show when={canMasquerade()}>
+                <div style={{"margin-bottom": "0.75rem"}}>
+                  <Show when={!conversations() && !loadingConversations()}>
+                    <button
+                      class="ueu-btn-messages"
+                      onClick={() => loadConversations(data().canvasUserId!, null)}
+                    >
+                      View student inbox
+                    </button>
+                  </Show>
+                  <Show when={loadingConversations()}>
+                    <p class="ueu-loading">Loading inbox&hellip;</p>
+                  </Show>
+                  <Show when={conversationError()}>
+                    <p class="ueu-warn">{conversationError()}</p>
+                  </Show>
+                  <Show when={conversations()}>
+                    {convos => (
+                      <Show
+                        when={convos().length > 0}
+                        fallback={<p class="ueu-muted">No conversations found.</p>}
+                      >
+                        <div class="ueu-convo-list">
+                          <For each={convos()}>
+                            {convo => (
+                              <div class="ueu-convo-preview">
+                                <span class="ueu-convo-subject">{convo.subject || "(no subject)"}</span>
+                                <span class="ueu-convo-meta">
+                                  {convo.participants.map(p => p.name).join(", ")}
+                                  {" · "}
+                                  {new Date(convo.last_message_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                </span>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                    )}
+                  </Show>
+                </div>
+              </Show>
             </Show>
 
             {/* Term filter chips */}
