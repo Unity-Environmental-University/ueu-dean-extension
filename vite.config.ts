@@ -1,7 +1,22 @@
-import { defineConfig } from "vite"
+import { defineConfig, type Plugin } from "vite"
+import { cpSync } from "node:fs"
+import { resolve } from "node:path"
 import solid from "vite-plugin-solid"
 import webExtension from "vite-plugin-web-extension"
 import manifest from "./manifest.json"
+
+/** Copy static dirs (e.g. docs/) into the build output. */
+function copyStatic(...dirs: string[]): Plugin {
+  return {
+    name: "copy-static",
+    writeBundle(options) {
+      const outDir = options.dir ?? "dist"
+      for (const dir of dirs) {
+        cpSync(resolve(__dirname, dir), resolve(outDir, dir), { recursive: true })
+      }
+    },
+  }
+}
 
 const browser = process.env.TARGET_BROWSER ?? "chrome"
 
@@ -37,5 +52,6 @@ export default defineConfig({
       browser,
       additionalInputs: ["src/content/page-bridge.ts"],
     }),
+    copyStatic("docs"),
   ],
 })

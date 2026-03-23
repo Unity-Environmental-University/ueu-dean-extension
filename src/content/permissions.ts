@@ -39,13 +39,13 @@ const SETTINGS_KEY = "ueu_settings"
 export interface Settings {
   /** Canvas user ID to receive diagnostic messages */
   supportCanvasId: string
-  /** Sticky subtype filter for prior-cases drawer (empty string = show all) */
-  historySubTypeFilter: string
+  /** Sticky subtype filter for prior-cases drawer. undefined = never set, "" = explicitly All, string = filter */
+  historySubTypeFilter?: string
 }
 
 export async function getSettings(): Promise<Settings> {
   const result = await browser.storage.local.get(SETTINGS_KEY)
-  return { supportCanvasId: __SUPPORT_CANVAS_ID__, historySubTypeFilter: "", ...result[SETTINGS_KEY] }
+  return { supportCanvasId: __SUPPORT_CANVAS_ID__, ...result[SETTINGS_KEY] }
 }
 
 export async function saveSettings(settings: Partial<Settings>): Promise<Settings> {
