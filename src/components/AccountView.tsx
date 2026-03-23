@@ -8,26 +8,7 @@ import { createSignal, createEffect, onCleanup, Show, For } from "solid-js"
 import browser from "webextension-polyfill"
 import { state, refresh, loadConversations } from "../content/core"
 import { isCurrentTerm, termAverage } from "../content/student-courses"
-
-function scoreColor(score: number | null): string {
-  if (score === null) return "#888"
-  if (score >= 90) return "#16a34a"
-  if (score >= 80) return "#65a30d"
-  if (score >= 70) return "#ca8a04"
-  if (score >= 60) return "#ea580c"
-  return "#dc2626"
-}
-
-function formatScore(score: number | null): string {
-  if (score === null) return "—"
-  return score.toFixed(1) + "%"
-}
-
-function formatLda(iso: string | null): string {
-  if (!iso) return "—"
-  const d = new Date(iso)
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
-}
+import { scoreColor, formatScore, formatLda } from "./format"
 
 export function AccountView() {
   const [version, setVersion] = createSignal(0)
