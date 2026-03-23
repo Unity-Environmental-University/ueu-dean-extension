@@ -54,3 +54,20 @@ export async function saveSettings(settings: Partial<Settings>): Promise<Setting
   await browser.storage.local.set({ [SETTINGS_KEY]: updated })
   return updated
 }
+
+const CANVAS_CAP_KEY = "ueu_canvas_capabilities"
+
+export interface CanvasCapabilities {
+  /** Whether the logged-in Canvas user has "Become other users" permission. Cached across sessions. */
+  canMasquerade: boolean | null
+}
+
+export async function getCanvasCapabilities(): Promise<CanvasCapabilities> {
+  const result = await browser.storage.local.get(CANVAS_CAP_KEY)
+  return { canMasquerade: null, ...result[CANVAS_CAP_KEY] }
+}
+
+export async function saveCanvasCapabilities(caps: Partial<CanvasCapabilities>): Promise<void> {
+  const current = await getCanvasCapabilities()
+  await browser.storage.local.set({ [CANVAS_CAP_KEY]: { ...current, ...caps } })
+}

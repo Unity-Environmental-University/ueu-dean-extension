@@ -42,6 +42,9 @@ export function AccountView() {
   const loading = () => { version(); return state.loading }
   const error = () => { version(); return state.error }
   const canMasquerade = () => { version(); return state.canMasquerade }
+  const canMasqueradeCache = () => { version(); return state.canMasqueradeCache }
+  const showCanvasFeatures = () => canMasquerade() === true || (canMasquerade() === null && canMasqueradeCache() === true)
+  const canvasFeaturesPending = () => canMasquerade() === null && canMasqueradeCache() === true
   const conversations = () => { version(); return state.conversations }
   const loadingConversations = () => { version(); return state.loadingConversations }
   const conversationError = () => { version(); return state.conversationError }
@@ -121,22 +124,28 @@ export function AccountView() {
               <p class="ueu-warn">{data().error}</p>
             </Show>
 
+            <Show when={canMasquerade() === false}>
+              <div class="ueu-canvas-no-access">
+                Some Canvas features are unavailable for your account. Message history and "Act as" require the "Become other users" permission in Canvas.
+              </div>
+            </Show>
+
             {/* Canvas links when we have a user ID */}
             <Show when={data().canvasUserId}>
               <div class="ueu-canvas-links" style={{"margin-bottom": "0.5rem"}}>
                 <a href={`https://unity.instructure.com/users/${data().canvasUserId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                   Profile &rarr;
                 </a>
-                <Show when={canMasquerade()}>
-                  <a href={`https://unity.instructure.com/users/${data().canvasUserId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                <Show when={showCanvasFeatures()}>
+                  <a href={`https://unity.instructure.com/users/${data().canvasUserId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
                     Act as &rarr;
                   </a>
                 </Show>
               </div>
 
               {/* Inbox — only available with masquerade permission */}
-              <Show when={canMasquerade()}>
-                <div style={{"margin-bottom": "0.75rem"}}>
+              <Show when={showCanvasFeatures()}>
+                <div class={canvasFeaturesPending() ? "ueu-canvas-pending" : undefined} style={{"margin-bottom": "0.75rem"}}>
                   <Show when={!conversations() && !loadingConversations()}>
                     <button
                       class="ueu-btn-messages"

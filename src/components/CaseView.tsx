@@ -55,6 +55,11 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
   const loadingPriorCases = () => { version(); return state.loadingPriorCases }
   const instructor = () => { version(); return state.instructor }
   const canMasquerade = () => { version(); return state.canMasquerade }
+  const canMasqueradeCache = () => { version(); return state.canMasqueradeCache }
+  // Show Canvas features if verified, or if cache says yes while re-verifying this session
+  const showCanvasFeatures = () => canMasquerade() === true || (canMasquerade() === null && canMasqueradeCache() === true)
+  // Ghost (dim + disable) when still verifying but cache says we had access
+  const canvasFeaturesPending = () => canMasquerade() === null && canMasqueradeCache() === true
   const conversations = () => { version(); return state.conversations }
   const loadingConversations = () => { version(); return state.loadingConversations }
   const conversationError = () => { version(); return state.conversationError }
@@ -397,8 +402,8 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                   <a href={`https://unity.instructure.com/users/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                     Profile &rarr;
                   </a>
-                  <Show when={canMasquerade()}>
-                    <a href={`https://unity.instructure.com/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                  <Show when={showCanvasFeatures()}>
+                    <a href={`https://unity.instructure.com/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
                       Act as &rarr;
                     </a>
                   </Show>
@@ -409,9 +414,16 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
         )}
       </Show>
 
+      {/* Canvas access unavailable — shown when session exists but user lacks masquerade permission */}
+      <Show when={canMasquerade() === false}>
+        <div class="ueu-canvas-no-access">
+          Canvas message history is not available for your account. To view instructor–student communications, your Canvas account requires the "Become other users" permission.
+        </div>
+      </Show>
+
       {/* Canvas Messages — shown when masquerade available + student + instructor IDs known */}
-      <Show when={canMasquerade() && canvas()?.studentId && instructor()?.canvasId}>
-        <article>
+      <Show when={showCanvasFeatures() && canvas()?.studentId && instructor()?.canvasId}>
+        <article class={canvasFeaturesPending() ? "ueu-canvas-pending" : ""}>
           <h3 class="ueu-label">Messages</h3>
           <Show when={!conversations() && !loadingConversations()}>
             <button
@@ -483,8 +495,8 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                     In Course &rarr;
                   </a>
                 </Show>
-                <Show when={canMasquerade()}>
-                  <a href={`https://unity.instructure.com/users/${i().canvasId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                <Show when={showCanvasFeatures()}>
+                  <a href={`https://unity.instructure.com/users/${i().canvasId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
                     Act as &rarr;
                   </a>
                 </Show>

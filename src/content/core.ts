@@ -7,7 +7,7 @@
 
 import browser from "webextension-polyfill"
 import { getRecord, parseRecordUrl, describeObject, sfQuery } from "./sfapi"
-import { getPermissions } from "./permissions"
+import { getPermissions, getCanvasCapabilities, saveCanvasCapabilities } from "./permissions"
 import { pick, diag, makeFieldAccessor, type DiagLog, type DiagEntry } from "./resolve"
 import { observeFields, observeCaseComplete } from "./observer"
 import { loadAccountCourses, type AccountResult } from "./load-account"
@@ -125,6 +125,9 @@ export const state = {
   /** Whether the logged-in Canvas user has "Become other users" permission */
   canMasquerade: null as boolean | null,
 
+  /** Cached masquerade permission from last session — used to ghost features while re-verifying */
+  canMasqueradeCache: null as boolean | null,
+
   /** Canvas conversations — loaded on demand via loadConversations() */
   conversations: null as CanvasConversation[] | null,
   loadingConversations: false,
@@ -183,6 +186,7 @@ function applyPatch(patch: CasePatch): void {
   if ("copRaw" in patch) state.copRaw = patch.copRaw!
   if ("contactRaw" in patch) state.contactRaw = patch.contactRaw!
   if ("canMasquerade" in patch) state.canMasquerade = patch.canMasquerade!
+  if ("canMasqueradeCache" in patch) state.canMasqueradeCache = patch.canMasqueradeCache!
   state.notify()
 }
 
@@ -336,7 +340,7 @@ async function loadAccount(recordId: string, token: number) {
       state.notify()
       // Probe masquerade with confirmed Canvas ID
       if (state.canMasquerade === null) {
-        state.canMasquerade = await probeCanvasMasquerade(retry.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) })
+        await setCanMasquerade(await probeCanvasMasquerade(retry.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) }))
         if (!stale(token)) state.notify()
       }
       return
@@ -361,7 +365,7 @@ async function loadAccount(recordId: string, token: number) {
 
   // Probe masquerade permission if we have a Canvas ID and haven't probed yet
   if (result.canvasUserId && state.canMasquerade === null && !result.error) {
-    state.canMasquerade = await probeCanvasMasquerade(result.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) })
+    await setCanMasquerade(await probeCanvasMasquerade(result.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) }))
     if (!stale(token)) state.notify()
   }
 }
@@ -435,7 +439,23 @@ export function refresh() {
 }
 
 /** Start watching for navigation changes */
+/** Set canMasquerade in state and persist to storage if it resolved to a definite value. */
+async function setCanMasquerade(value: boolean | null): Promise<void> {
+  state.canMasquerade = value
+  if (value !== null) {
+    await saveCanvasCapabilities({ canMasquerade: value })
+  }
+}
+
 export function startWatching() {
+  // Load cached masquerade capability so features can ghost while re-verifying
+  getCanvasCapabilities().then(caps => {
+    if (state.canMasqueradeCache !== caps.canMasquerade) {
+      state.canMasqueradeCache = caps.canMasquerade
+      state.notify()
+    }
+  })
+
   // Initial check
   onNavigate()
 
