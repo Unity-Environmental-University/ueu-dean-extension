@@ -30,6 +30,24 @@ export function CourseOfferingView() {
     else { setSortKey(key); setSortAsc(key === "name") }
   }
 
+  const rosterStats = () => {
+    const d = data()
+    if (!d || d.students.length === 0) return null
+    const students = d.students
+    const withScores = students.filter(s => s.currentScore !== null)
+    const avg = withScores.length > 0
+      ? withScores.reduce((sum, s) => sum + s.currentScore!, 0) / withScores.length
+      : null
+    const below70 = withScores.filter(s => s.currentScore! < 70).length
+    const now = Date.now()
+    const fourteenDays = 14 * 24 * 60 * 60 * 1000
+    const inactive = students.filter(s => {
+      if (!s.lastActivityAt) return true
+      return now - new Date(s.lastActivityAt).getTime() > fourteenDays
+    }).length
+    return { total: students.length, withScores: withScores.length, avg, below70, inactive }
+  }
+
   const sorted = () => {
     const d = data()
     if (!d) return []
@@ -116,9 +134,24 @@ export function CourseOfferingView() {
 
             {/* Roster */}
             <Show when={d().students.length > 0}>
-              <p class="ueu-muted" style={{"margin": "0.5rem 0 0.35rem"}}>
-                {d().students.length} student{d().students.length !== 1 ? "s" : ""}
-              </p>
+              <div class="ueu-roster-summary">
+                <span>{rosterStats()?.total} students</span>
+                <Show when={rosterStats()?.avg !== null}>
+                  <span class="ueu-roster-stat">
+                    avg <strong style={{"color": scoreColor(rosterStats()!.avg!)}}>{rosterStats()!.avg!.toFixed(1)}%</strong>
+                  </span>
+                </Show>
+                <Show when={rosterStats()?.below70! > 0}>
+                  <span class="ueu-roster-stat ueu-roster-warn">
+                    {rosterStats()!.below70} below 70%
+                  </span>
+                </Show>
+                <Show when={rosterStats()?.inactive! > 0}>
+                  <span class="ueu-roster-stat ueu-roster-warn">
+                    {rosterStats()!.inactive} inactive 14d+
+                  </span>
+                </Show>
+              </div>
               <table class="ueu-roster">
                 <thead>
                   <tr>
