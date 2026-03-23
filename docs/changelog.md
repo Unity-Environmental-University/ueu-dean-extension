@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-23 (v0.3.0)
+
+### New
+
+- **Account page view.** Navigate to a student's Account record in Salesforce to see their Canvas courses grouped by term, with current scores, grades, and last activity dates. Click any term chip to filter. Current term is auto-selected.
+
+- **Course Offering page view.** Navigate to a Course Offering record to see the full Canvas roster with grades, enrollment state, last activity, and sortable columns.
+
+- **Canvas messages (click-to-load).** On a Case page with both student and instructor resolved, click "View instructor ↔ student messages" to see recent Canvas conversations between them. On an Account page, click "View student inbox" to see the student's full inbox. Requires masquerade permission — the button only appears if you have it.
+
+- **Permission-aware links.** "Act as →" links for students and instructors now only appear if your Canvas account has the "Become other users" permission. If you don't have it, the links simply aren't shown — no broken clicks.
+
+### Improved
+
+- **Term names are cleaner.** History cards and term group headers now strip internal suffixes (e.g. "Spring 2026 - Distance Education" → "Spring 2026").
+
+- **History drawer polish.** Case subtype and type names are abbreviated for readability. Course codes are extracted and shown alongside term names. Course Offering links go directly to the SF record.
+
+- **Last Date of Activity (LDA)** is now shown on Account pages and in Course Offering rosters — helps advisors spot disengaged students quickly.
+
+- **Canvas session detection is smarter.** The extension now distinguishes "not logged into Canvas" from "no masquerade permission" — you get the right prompt for each situation.
+
+### Fixed
+
+- **All-filter race condition.** Selecting "All" in the history drawer no longer briefly shows stale filtered results.
+
+- **First-load race.** Fixed a timing issue where the extension could miss data on the very first page load after install.
+
+---
+
 ## 2026-03-18 (v0.2.0)
 
 ### New
