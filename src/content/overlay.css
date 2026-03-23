@@ -390,6 +390,11 @@
   flex-shrink: 0;
 }
 
+.ueu-history-date {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
 .ueu-history-current {
   border-color: #2d6a4f;
   background: #f0faf5;

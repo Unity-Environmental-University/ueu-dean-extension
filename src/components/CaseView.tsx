@@ -261,6 +261,9 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                           <Show when={isCurrent()}><span class="ueu-current-marker"> (this case)</span></Show>
                         </a>
                         <span class="ueu-history-right">
+                          <span class="ueu-history-date">
+                            {new Date(c.createdDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
                           <span class="ueu-pill" data-status={c.status.toLowerCase()}>{c.status}</span>
                         </span>
                       </div>
