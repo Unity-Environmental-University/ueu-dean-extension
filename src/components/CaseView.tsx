@@ -449,7 +449,7 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                             return (
                               <div class="ueu-msg">
                                 <div class="ueu-msg-meta">
-                                  <span class="ueu-msg-author">{author?.name ?? `User ${msg.author_id}`}</span>
+                                  <span class="ueu-msg-author">{author?.full_name ?? author?.name ?? `User ${msg.author_id}`}</span>
                                   <span class="ueu-msg-date">{dateStr}</span>
                                 </div>
                                 <p class="ueu-msg-body">{msg.body}</p>

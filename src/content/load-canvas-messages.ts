@@ -19,23 +19,28 @@ export interface CanvasConversation {
   subject: string
   last_message_at: string
   message_count: number
-  participants: Array<{ id: number; name: string }>
+  participants: Array<{ id: number; name: string; full_name?: string }>
   messages: CanvasConversationMessage[]
 }
 
 export interface LoadMessagesDeps {
   canvasFetch: <T>(path: string) => Promise<T>
+  checkSession: () => Promise<boolean>
   isStale: () => boolean
 }
 
 /**
  * Probe whether the logged-in Canvas user has "Become other users" permission.
- * Attempts to masquerade as the given user — 200 means yes, anything else means no.
+ * Checks for an active Canvas session first — returns null if no session
+ * (meaning "unknown, not denied"), false if session exists but masquerade fails,
+ * true if masquerade succeeds.
  */
 export async function probeCanvasMasquerade(
   canvasUserId: string,
   deps: LoadMessagesDeps,
-): Promise<boolean> {
+): Promise<boolean | null> {
+  const hasSession = await deps.checkSession()
+  if (!hasSession) return null
   try {
     await deps.canvasFetch(`/api/v1/users/${canvasUserId}?as_user_id=${canvasUserId}`)
     return true
@@ -63,7 +68,7 @@ export async function loadCanvasConversations(
       subject: string
       last_message_at: string
       message_count: number
-      participants: Array<{ id: number; name: string }>
+      participants: Array<{ id: number; name: string; full_name?: string }>
     }>>(path)
 
     if (deps.isStale()) return { conversations: [], error: null }

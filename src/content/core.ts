@@ -18,6 +18,11 @@ import type { TermGroup } from "./student-courses"
 
 const CANVAS_HOST = "unity.instructure.com"
 
+async function checkCanvasSession(): Promise<boolean> {
+  const result = await browser.runtime.sendMessage({ type: "canvas-session-check" }) as { hasSession: boolean }
+  return !!result?.hasSession
+}
+
 async function canvasFetch<T>(path: string): Promise<T> {
   const result = await browser.runtime.sendMessage({
     type: "canvas-api",
@@ -188,6 +193,7 @@ function makeCaseDeps(token: number) {
     sfQuery,
     describeObject,
     canvasFetch,
+    checkSession: checkCanvasSession,
     isStale: () => stale(token),
     onUpdate: applyPatch,
     observeFields,
@@ -330,7 +336,7 @@ async function loadAccount(recordId: string, token: number) {
       state.notify()
       // Probe masquerade with confirmed Canvas ID
       if (state.canMasquerade === null) {
-        state.canMasquerade = await probeCanvasMasquerade(retry.canvasUserId, { canvasFetch, isStale: () => stale(token) })
+        state.canMasquerade = await probeCanvasMasquerade(retry.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) })
         if (!stale(token)) state.notify()
       }
       return
@@ -355,7 +361,7 @@ async function loadAccount(recordId: string, token: number) {
 
   // Probe masquerade permission if we have a Canvas ID and haven't probed yet
   if (result.canvasUserId && state.canMasquerade === null && !result.error) {
-    state.canMasquerade = await probeCanvasMasquerade(result.canvasUserId, { canvasFetch, isStale: () => stale(token) })
+    state.canMasquerade = await probeCanvasMasquerade(result.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) })
     if (!stale(token)) state.notify()
   }
 }
@@ -468,6 +474,7 @@ export async function loadConversations(
 
   const result = await loadCanvasConversations(studentCanvasId, instructorCanvasId, {
     canvasFetch,
+    checkSession: checkCanvasSession,
     isStale: () => stale(token),
   })
 

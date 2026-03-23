@@ -17,6 +17,7 @@ export interface LoadCaseDeps {
   sfQuery: <T>(soql: string) => Promise<SoqlResult<T>>
   describeObject: (objectType: string) => Promise<Map<string, { name: string; label: string; type: string }>>
   canvasFetch: <T>(path: string) => Promise<T>
+  checkSession: () => Promise<boolean>
   isStale: () => boolean
   onUpdate: (patch: CasePatch) => void
   observeFields: (objectType: string, log: DiagEntry[]) => void

@@ -163,7 +163,7 @@ export function AccountView() {
                               <div class="ueu-convo-preview">
                                 <span class="ueu-convo-subject">{convo.subject || "(no subject)"}</span>
                                 <span class="ueu-convo-meta">
-                                  {convo.participants.map(p => p.name).join(", ")}
+                                  {convo.participants.map(p => p.full_name ?? p.name).join(", ")}
                                   {" · "}
                                   {new Date(convo.last_message_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                                 </span>
