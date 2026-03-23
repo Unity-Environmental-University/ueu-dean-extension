@@ -46,6 +46,10 @@ src/
 3. Add the accessor in the relevant view component
 4. Reset it in the appropriate loader wrapper (loadCaseWrapper, loadAccount, etc.) and in `doNavigate`'s clear block
 
+## Who Uses This
+
+Six user classes — see [docs/users.md](docs/users.md) for the full picture. Summary: Dean (case adjudicator), Advisor (longitudinal student view), Coordinator (course-level ops), Staff without masquerade, New user (no Canvas session), and Claude (codebase contributor). The extension doesn't model roles — it models permissions. Understanding who's behind those permissions shapes what we build.
+
 ## Build + Dev
 
 ```bash

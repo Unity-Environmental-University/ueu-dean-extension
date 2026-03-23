@@ -13,6 +13,7 @@ import { observeFields, observeCaseComplete } from "./observer"
 import { loadAccountCourses, type AccountResult } from "./load-account"
 import { loadCase as loadCaseImpl, type CasePatch } from "./load-case"
 import { loadCourseOffering as loadCourseOfferingImpl, type CourseOfferingResult } from "./load-course-offering"
+import { loadAccountCases as loadAccountCasesImpl, type AccountCasesResult } from "./load-account-cases"
 import { probeCanvasMasquerade, loadCanvasConversations, type CanvasConversation } from "./load-canvas-messages"
 import type { TermGroup } from "./student-courses"
 
@@ -118,6 +119,9 @@ export const state = {
     lastActivityAt: string | null
     error: string | null
   } | null,
+
+  /** Account page case awareness — open/recent cases for this student */
+  accountCases: null as AccountCasesResult | null,
 
   /** CourseOffering page data — roster + grades */
   offeringData: null as CourseOfferingResult | null,
@@ -302,12 +306,20 @@ async function loadAccount(recordId: string, token: number) {
   state.loading = true
   state.error = null
   state.accountData = null
+  state.accountCases = null
   state.canMasquerade = null
   state.conversations = null
   state.loadingConversations = false
   state.conversationError = null
   state.diagnostics = []
   state.notify()
+
+  // Fire case query in parallel with Canvas courses — it's SF-only, no Canvas needed
+  loadAccountCasesImpl(recordId, { sfQuery, isStale: () => stale(token) }).then(casesResult => {
+    if (stale(token)) return
+    state.accountCases = casesResult
+    state.notify()
+  })
 
   const result = await loadAccountCourses(recordId, {
     getRecord,
@@ -391,6 +403,7 @@ async function doNavigate() {
       state.instructor = null
       state.canvas = null
       state.accountData = null
+      state.accountCases = null
       state.conversations = null
       state.loadingConversations = false
       state.conversationError = null

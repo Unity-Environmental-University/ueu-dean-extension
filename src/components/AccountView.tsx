@@ -45,6 +45,7 @@ export function AccountView() {
   const canMasqueradeCache = () => { version(); return state.canMasqueradeCache }
   const showCanvasFeatures = () => canMasquerade() === true || (canMasquerade() === null && canMasqueradeCache() === true)
   const canvasFeaturesPending = () => canMasquerade() === null && canMasqueradeCache() === true
+  const accountCases = () => { version(); return state.accountCases }
   const conversations = () => { version(); return state.conversations }
   const loadingConversations = () => { version(); return state.loadingConversations }
   const conversationError = () => { version(); return state.conversationError }
@@ -102,6 +103,29 @@ export function AccountView() {
                 <span class="ueu-lda-label">Last activity</span>
                 <span class="ueu-lda-value">{formatLda(data().lastActivityAt)}</span>
               </div>
+            </Show>
+
+            {/* Case awareness — open cases signal for advisors */}
+            <Show when={accountCases()}>
+              {cases => (
+                <Show when={cases().openCount > 0}>
+                  <div class="ueu-case-signal">
+                    <span class="ueu-case-signal-count">{cases().openCount}</span>
+                    <span class="ueu-case-signal-label">
+                      open {cases().openCount === 1 ? "case" : "cases"}
+                    </span>
+                    <Show when={cases().cases.length > 0}>
+                      <span class="ueu-case-signal-types">
+                        {[...new Set(cases().cases
+                          .filter(c => c.status !== "Closed" && c.status !== "Resolved")
+                          .map(c => c.type)
+                          .filter(Boolean)
+                        )].join(", ")}
+                      </span>
+                    </Show>
+                  </div>
+                </Show>
+              )}
             </Show>
 
             <Show when={data().error === "no-canvas-id"}>
