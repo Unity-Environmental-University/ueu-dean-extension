@@ -53,6 +53,7 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
   const priorCases = get("priorCases")
   const loadingPriorCases = get("loadingPriorCases")
   const instructor = get("instructor")
+  const canMasquerade = get("canMasquerade")
   const { showCanvasFeatures, canvasFeaturesPending } = useCanvasPermissions(get)
   const conversations = get("conversations")
   const loadingConversations = get("loadingConversations")

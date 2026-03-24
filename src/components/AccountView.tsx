@@ -20,6 +20,7 @@ export function AccountView() {
   const accountData = get("accountData")
   const loading = get("loading")
   const error = get("error")
+  const canMasquerade = get("canMasquerade")
   const { showCanvasFeatures, canvasFeaturesPending } = useCanvasPermissions(get)
   const accountCases = get("accountCases")
   const conversations = get("conversations")
