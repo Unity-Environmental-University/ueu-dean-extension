@@ -1,0 +1,211 @@
+import { describe, it, expect } from "vitest"
+import fc from "fast-check"
+import { classifyIncident, findExactEmailMatch, extractCourseCode } from "./case-helpers"
+
+describe("classifyIncident", () => {
+  it("prop: null always yields 'other'", () => {
+    expect(classifyIncident(null)).toBe("other")
+  })
+
+  it("prop: any string containing 'plagiari' (case-insensitive) yields 'plagiarism'", () => {
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (prefix, suffix) => {
+        expect(classifyIncident(`${prefix}plagiari${suffix}`)).toBe("plagiarism")
+        expect(classifyIncident(`${prefix}PLAGIARI${suffix}`)).toBe("plagiarism")
+        expect(classifyIncident(`${prefix}Plagiari${suffix}`)).toBe("plagiarism")
+      }),
+      { numRuns: 50 },
+    )
+  })
+
+  it("prop: any string containing 'cheat' yields 'cheating'", () => {
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (prefix, suffix) => {
+        // Skip if it also contains plagiari (which takes priority)
+        const input = `${prefix}cheat${suffix}`
+        if (input.toLowerCase().includes("plagiari")) return
+        expect(classifyIncident(input)).toBe("cheating")
+      }),
+      { numRuns: 50 },
+    )
+  })
+
+  it("prop: any string containing 'fabricat' yields 'fabrication'", () => {
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (prefix, suffix) => {
+        const input = `${prefix}fabricat${suffix}`
+        if (input.toLowerCase().includes("plagiari") || input.toLowerCase().includes("cheat")) return
+        expect(classifyIncident(input)).toBe("fabrication")
+      }),
+      { numRuns: 50 },
+    )
+  })
+
+  it("prop: strings without any keyword yield 'other'", () => {
+    fc.assert(
+      fc.property(
+        fc.string().filter(s => {
+          const l = s.toLowerCase()
+          return !l.includes("plagiari") && !l.includes("cheat") && !l.includes("fabricat")
+        }),
+        (s) => {
+          expect(classifyIncident(s)).toBe("other")
+        },
+      ),
+      { numRuns: 100 },
+    )
+  })
+
+  it("handles real SF incident type values", () => {
+    expect(classifyIncident("Plagiarism")).toBe("plagiarism")
+    expect(classifyIncident("Cheating on Exam")).toBe("cheating")
+    expect(classifyIncident("Data Fabrication")).toBe("fabrication")
+    expect(classifyIncident("Other Violation")).toBe("other")
+  })
+})
+
+describe("findExactEmailMatch", () => {
+  it("prop: returns null for empty user list", () => {
+    fc.assert(
+      fc.property(fc.emailAddress(), (email) => {
+        expect(findExactEmailMatch([], email)).toBeNull()
+      }),
+      { numRuns: 20 },
+    )
+  })
+
+  it("prop: exact email match always found", () => {
+    fc.assert(
+      fc.property(
+        fc.emailAddress(),
+        fc.nat({ max: 99999 }),
+        fc.string({ minLength: 1 }),
+        (email, id, name) => {
+          const users = [{ id, name, email }]
+          const result = findExactEmailMatch(users, email)
+          expect(result).toMatchObject({ id, name })
+        },
+      ),
+      { numRuns: 50 },
+    )
+  })
+
+  it("prop: exact login_id match found", () => {
+    fc.assert(
+      fc.property(
+        fc.emailAddress(),
+        fc.nat({ max: 99999 }),
+        fc.string({ minLength: 1 }),
+        (email, id, name) => {
+          const users = [{ id, name, login_id: email }]
+          const result = findExactEmailMatch(users, email)
+          expect(result).toMatchObject({ id, name })
+        },
+      ),
+      { numRuns: 50 },
+    )
+  })
+
+  it("prop: case-insensitive matching", () => {
+    fc.assert(
+      fc.property(
+        fc.emailAddress(),
+        fc.nat({ max: 99999 }),
+        fc.string({ minLength: 1 }),
+        (email, id, name) => {
+          const users = [{ id, name, email: email.toUpperCase() }]
+          const result = findExactEmailMatch(users, email.toLowerCase())
+          expect(result).toMatchObject({ id, name })
+        },
+      ),
+      { numRuns: 50 },
+    )
+  })
+
+  it("prop: single-user fallback — returns sole user even without email match", () => {
+    fc.assert(
+      fc.property(
+        fc.emailAddress(),
+        fc.emailAddress().filter(e => e.length > 5),
+        fc.nat({ max: 99999 }),
+        fc.string({ minLength: 1 }),
+        (searchEmail, otherEmail, id, name) => {
+          // Ensure emails are actually different
+          if (searchEmail.toLowerCase() === otherEmail.toLowerCase()) return
+          const users = [{ id, name, email: otherEmail }]
+          const result = findExactEmailMatch(users, searchEmail)
+          // Single user fallback
+          expect(result).toMatchObject({ id, name })
+        },
+      ),
+      { numRuns: 30 },
+    )
+  })
+
+  it("prop: multiple non-matching users returns null", () => {
+    fc.assert(
+      fc.property(
+        fc.emailAddress(),
+        fc.array(
+          fc.record({
+            id: fc.nat({ max: 99999 }),
+            name: fc.string({ minLength: 1 }),
+            email: fc.emailAddress(),
+          }),
+          { minLength: 2, maxLength: 5 },
+        ),
+        (searchEmail, users) => {
+          // Ensure no user matches
+          const filtered = users.filter(u =>
+            u.email.toLowerCase() !== searchEmail.toLowerCase()
+          )
+          if (filtered.length < 2) return
+          expect(findExactEmailMatch(filtered, searchEmail)).toBeNull()
+        },
+      ),
+      { numRuns: 30 },
+    )
+  })
+})
+
+describe("extractCourseCode", () => {
+  it("prop: null always yields null", () => {
+    expect(extractCourseCode(null)).toBeNull()
+  })
+
+  it("extracts standard course codes", () => {
+    expect(extractCourseCode("BIO101 Fall 2024 - 01")).toBe("BIO101 - 01")
+    expect(extractCourseCode("MATH2010 Spring 2025 - 02")).toBe("MATH2010 - 02")
+    expect(extractCourseCode("ENG100 - 03")).toBe("ENG100 - 03")
+  })
+
+  it("prop: result always matches CODE - SECTION format when non-null", () => {
+    fc.assert(
+      fc.property(
+        fc.stringMatching(/^[A-Z]{3,4}\d{3,4}/),
+        fc.string({ minLength: 0, maxLength: 20 }),
+        fc.stringMatching(/^\d{1,3}$/),
+        (code, middle, section) => {
+          const input = `${code}${middle} - ${section}`
+          const result = extractCourseCode(input)
+          if (result) {
+            expect(result).toMatch(/^[A-Z]{3,4}\d{3,4} - \d+$/i)
+          }
+        },
+      ),
+      { numRuns: 50 },
+    )
+  })
+
+  it("prop: strings without course code pattern yield null", () => {
+    fc.assert(
+      fc.property(
+        fc.string({ minLength: 0, maxLength: 50 }).filter(s => !/[A-Z]{3,4}\d{3,4}.*\s-\s\d+/i.test(s)),
+        (s) => {
+          expect(extractCourseCode(s)).toBeNull()
+        },
+      ),
+      { numRuns: 100 },
+    )
+  })
+})
