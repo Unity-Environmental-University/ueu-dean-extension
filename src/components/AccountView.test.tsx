@@ -4,7 +4,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen } from "@solidjs/testing-library"
 import fc from "fast-check"
 import { state } from "../content/core"
-import type { AccountCasesResult, AccountCase } from "../content/load-account-cases"
+import type { AccountCasesResult } from "../content/load-account-cases"
+import type { PriorCase } from "../content/case-types"
 
 // Mock webextension-polyfill — components import it for browser.runtime.sendMessage
 vi.mock("webextension-polyfill", () => ({
@@ -42,7 +43,7 @@ beforeEach(() => {
 const CASE_STATUSES = ["Open", "In Progress", "Closed", "Resolved"] as const
 const CASE_TYPES = ["Academic Dishonesty", "Grade Appeal", "General Inquiry", "Withdrawal"] as const
 
-const arbCase: fc.Arbitrary<AccountCase> = fc.record({
+const arbCase: fc.Arbitrary<PriorCase> = fc.record({
   id: fc.string({ minLength: 1, maxLength: 18 }),
   caseNumber: fc.stringMatching(/^[0-9]{5,8}$/),
   type: fc.constantFrom(...CASE_TYPES),
@@ -51,6 +52,7 @@ const arbCase: fc.Arbitrary<AccountCase> = fc.record({
   createdDate: fc.date({ min: new Date("2020-01-01T00:00:00Z"), max: new Date("2026-12-31T00:00:00Z"), noInvalidDate: true }).map(d => d.toISOString()),
   courseName: fc.option(fc.string({ minLength: 1 }), { nil: null }),
   courseCode: fc.option(fc.string({ minLength: 1 }), { nil: null }),
+  courseOfferingId: fc.option(fc.string({ minLength: 1, maxLength: 18 }), { nil: null }),
   termName: fc.option(fc.string({ minLength: 1 }), { nil: null }),
 })
 

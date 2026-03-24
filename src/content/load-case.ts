@@ -7,9 +7,8 @@
  */
 
 import { makeFieldAccessor, createDiagLog, type DiagLog } from "./resolve"
-import { cleanTermName } from "./field-utils"
 import { probeCanvasMasquerade } from "./load-canvas-messages"
-import { classifyIncident, extractCourseCode } from "./case-helpers"
+import { classifyIncident, buildCaseListQuery, mapCaseRecord, type CaseListRecord } from "./case-helpers"
 import { resolveCanvasAndStudent, resolveInstructor } from "./case-course-and-instructor"
 import type {
   LoadCaseDeps, CasePatch, CaseData, CanvasState,
@@ -60,27 +59,11 @@ export async function loadPriorCases(
 ): Promise<void> {
   deps.onUpdate({ loadingPriorCases: true })
   try {
-    const soql = `SELECT Id, CaseNumber, Type, SubType__c, Status, CreatedDate, Course_Offering__c, Course_Offering__r.Name, Course_Offering__r.Academic_Term_Display_Name__c FROM Case WHERE ContactId = '${contactId}' ORDER BY CreatedDate DESC LIMIT 25`
-    const result = await deps.sfQuery<{
-      Id: string; CaseNumber: string; Type: string
-      SubType__c: string | null; Status: string; CreatedDate: string
-      Course_Offering__c: string | null
-      Course_Offering__r?: { Name?: string; Academic_Term_Display_Name__c?: string }
-    }>(soql)
+    const soql = buildCaseListQuery({ where: `ContactId = '${contactId}'`, limit: 25 })
+    const result = await deps.sfQuery<CaseListRecord>(soql)
     if (deps.isStale()) return
     deps.onUpdate({
-      priorCases: result.records.map(r => ({
-        id: r.Id,
-        caseNumber: r.CaseNumber,
-        type: r.Type,
-        subType: r.SubType__c,
-        status: r.Status,
-        createdDate: r.CreatedDate,
-        courseName: r.Course_Offering__r?.Name ?? null,
-        courseCode: extractCourseCode(r.Course_Offering__r?.Name ?? null),
-        courseOfferingId: r.Course_Offering__c ?? null,
-        termName: cleanTermName(r.Course_Offering__r?.Academic_Term_Display_Name__c ?? null),
-      })),
+      priorCases: result.records.map(mapCaseRecord),
       diagnostics: [{ type: "prior-cases", detail: `found ${result.records.length} prior case(s)` }],
     })
   } catch (e) {

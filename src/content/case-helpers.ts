@@ -4,6 +4,58 @@
  * No dependencies, no side effects. Easy to test in isolation.
  */
 
+import { cleanTermName } from "./field-utils"
+import type { PriorCase } from "./case-types"
+
+// ── SOQL case query builder ──────────────────────────────────────────────────
+
+/** Fields selected in every case list query */
+const CASE_LIST_FIELDS = [
+  "Id", "CaseNumber", "Type", "SubType__c", "Status", "CreatedDate",
+  "Course_Offering__c",
+  "Course_Offering__r.Name",
+  "Course_Offering__r.Academic_Term_Display_Name__c",
+].join(", ")
+
+export interface CaseQueryOpts {
+  where: string
+  limit?: number
+}
+
+/** Build a SOQL query for case lists. Caller supplies the WHERE clause. */
+export function buildCaseListQuery(opts: CaseQueryOpts): string {
+  const limit = opts.limit ?? 25
+  return `SELECT ${CASE_LIST_FIELDS} FROM Case WHERE ${opts.where} ORDER BY CreatedDate DESC LIMIT ${limit}`
+}
+
+/** Raw shape returned by SF for a case list query */
+export interface CaseListRecord {
+  Id: string
+  CaseNumber: string
+  Type: string
+  SubType__c: string | null
+  Status: string
+  CreatedDate: string
+  Course_Offering__c: string | null
+  Course_Offering__r?: { Name?: string; Academic_Term_Display_Name__c?: string }
+}
+
+/** Map a raw SF case record to a PriorCase */
+export function mapCaseRecord(r: CaseListRecord): PriorCase {
+  return {
+    id: r.Id,
+    caseNumber: r.CaseNumber,
+    type: r.Type,
+    subType: r.SubType__c,
+    status: r.Status,
+    createdDate: r.CreatedDate,
+    courseName: r.Course_Offering__r?.Name ?? null,
+    courseCode: extractCourseCode(r.Course_Offering__r?.Name ?? null),
+    courseOfferingId: r.Course_Offering__c ?? null,
+    termName: cleanTermName(r.Course_Offering__r?.Academic_Term_Display_Name__c ?? null),
+  }
+}
+
 /** Classify a raw incident type string into a normalized category */
 export function classifyIncident(raw: string | null): string {
   if (!raw) return "other"
