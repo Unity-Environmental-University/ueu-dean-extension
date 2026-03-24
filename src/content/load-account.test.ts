@@ -10,11 +10,11 @@ const arbTerm: fc.Arbitrary<CanvasTerm> = fc.record({
   id: fc.nat(),
   name: fc.string({ minLength: 1 }),
   start_at: fc.oneof(
-    fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01") }).map(d => d.toISOString()),
+    fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01"), noInvalidDate: true }).map(d => d.toISOString()),
     fc.constant(null),
   ),
   end_at: fc.oneof(
-    fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01") }).map(d => d.toISOString()),
+    fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01"), noInvalidDate: true }).map(d => d.toISOString()),
     fc.constant(null),
   ),
 })
