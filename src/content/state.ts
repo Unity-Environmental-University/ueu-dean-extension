@@ -10,7 +10,10 @@ import type { CourseOfferingResult } from "./load-course-offering"
 import type { AccountCasesResult } from "./load-account-cases"
 import type { CanvasConversation } from "./load-canvas-messages"
 import type { TermGroup } from "./student-courses"
-import type { CasePatch } from "./case-types"
+import type {
+  CasePatch, CaseData, CanvasState, DishonestyState,
+  GradeAppealState, InstructorState, PriorCase,
+} from "./case-types"
 
 /** Shared reactive state that the overlay UI reads from */
 export const state = {
@@ -21,74 +24,23 @@ export const state = {
   page: null as { objectType: string; recordId: string } | null,
 
   /** Case record data (when on a Case page) */
-  caseData: null as {
-    caseNumber: string
-    status: string
-    contactName: string
-    contactEmail: string
-    accountName: string
-    accountId: string | null
-    contactId: string | null
-    type: string
-    subType: string
-    subject: string
-  } | null,
+  caseData: null as CaseData | null,
 
   /** Prior cases for this student — loaded via SOQL after caseData is set */
-  priorCases: null as Array<{
-    id: string
-    caseNumber: string
-    type: string
-    subType: string | null
-    status: string
-    createdDate: string
-    courseName: string | null
-    courseCode: string | null
-    courseOfferingId: string | null
-    termName: string | null
-  }> | null,
+  priorCases: null as PriorCase[] | null,
   loadingPriorCases: false,
 
   /** Academic dishonesty fields from the case */
-  dishonesty: null as {
-    courseOfferingId: string | null
-    courseOfferingName: string | null
-    incidentType: string
-    assignmentName: string | null
-    severity: string | null
-    instructor: string | null
-    instructorEmail: string | null
-  } | null,
+  dishonesty: null as DishonestyState | null,
 
   /** Grade appeal fields from the case */
-  gradeAppeal: null as {
-    courseOfferingId: string | null
-    courseOfferingName: string | null
-    courseOfferingParticipantId: string | null
-    currentGrade: string | null
-    changedGrade: string | null
-    appealReason: string | null
-    decisionStatus: string | null
-    instructor: string | null
-    instructorEmail: string | null
-  } | null,
+  gradeAppeal: null as GradeAppealState | null,
 
   /** Canvas course info (resolved from Course Offering record) */
-  canvas: null as {
-    courseId: string
-    url: string
-    enrollmentUrl: string | null
-    studentId: string | null
-    studentName: string | null
-    studentPronouns: string | null
-  } | null,
+  canvas: null as CanvasState | null,
 
   /** Instructor info (resolved from case, looked up in Canvas) */
-  instructor: null as {
-    name: string | null
-    email: string | null
-    canvasId: string | null
-  } | null,
+  instructor: null as InstructorState | null,
 
   /** Account page data — courses grouped by term */
   accountData: null as {
