@@ -188,9 +188,12 @@ async function loadAccount(recordId: string, token: number) {
       state.diagnostics.push(...retry.diagnostics)
       state.loading = false
       state.notify()
-      if (state.canMasquerade === null) {
-        await setCanMasquerade(await probeCanvasMasquerade(retry.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) }))
-        if (!stale(token)) state.notify()
+      if (state.canMasquerade === null && !stale(token)) {
+        const masq = await probeCanvasMasquerade(retry.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) })
+        if (!stale(token)) {
+          await setCanMasquerade(masq)
+          state.notify()
+        }
       }
       return
     }
@@ -212,9 +215,12 @@ async function loadAccount(recordId: string, token: number) {
 
   state.notify()
 
-  if (result.canvasUserId && state.canMasquerade === null && !result.error) {
-    await setCanMasquerade(await probeCanvasMasquerade(result.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) }))
-    if (!stale(token)) state.notify()
+  if (result.canvasUserId && state.canMasquerade === null && !result.error && !stale(token)) {
+    const masq = await probeCanvasMasquerade(result.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) })
+    if (!stale(token)) {
+      await setCanMasquerade(masq)
+      state.notify()
+    }
   }
 }
 
