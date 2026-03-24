@@ -32,7 +32,19 @@ export interface DiagEntry {
   label?: string
 }
 
-export type DiagLog = DiagEntry[]
+export type DiagLog = DiagEntry[] & {
+  add(type: string, detail: string): void
+  pick(record: Record<string, unknown>, ...keys: string[]): string | null
+}
+
+/** Create a diagnostic log with convenience methods */
+export function createDiagLog(): DiagLog {
+  const log: DiagEntry[] = []
+  const dl = log as DiagLog
+  dl.add = (type, detail) => { log.push({ type, detail }) }
+  dl.pick = (record, ...keys) => pick(dl, record, ...keys)
+  return dl
+}
 
 /** Try multiple field name variants — SF custom fields are unpredictable */
 export function pick(log: DiagLog, record: Record<string, unknown>, ...keys: string[]): string | null {
@@ -48,6 +60,7 @@ export function pick(log: DiagLog, record: Record<string, unknown>, ...keys: str
   return null
 }
 
+/** @deprecated Use log.add(type, detail) instead */
 export function diag(log: DiagLog, type: string, detail: string) {
   log.push({ type, detail })
 }

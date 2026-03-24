@@ -8,7 +8,7 @@
  */
 
 import { CANVAS_URL, isCanvasAuthError } from "../constants"
-import { pick, type DiagLog } from "./resolve"
+import { createDiagLog, type DiagLog } from "./resolve"
 import type { SoqlResult } from "./sfapi"
 import { cleanTermName } from "./field-utils"
 
@@ -60,7 +60,7 @@ export async function loadCourseOffering(
   recordId: string,
   deps: LoadCourseOfferingDeps,
 ): Promise<CourseOfferingResult> {
-  const diagnostics: DiagLog = []
+  const diagnostics = createDiagLog()
   const empty: CourseOfferingResult = {
     offeringName: null,
     canvasCourseId: null,
@@ -83,12 +83,12 @@ export async function loadCourseOffering(
 
   if (deps.isStale()) return empty
 
-  const offeringName = pick(diagnostics, co, "Name")
-  const canvasCourseId = pick(diagnostics, co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
+  const offeringName = diagnostics.pick(co, "Name")
+  const canvasCourseId = diagnostics.pick(co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
   const termName = cleanTermName(
-    pick(diagnostics, co, "Academic_Term_Display_Name__c", "hed__Term__r.Name", "Term_Name__c")
+    diagnostics.pick(co, "Academic_Term_Display_Name__c", "hed__Term__r.Name", "Term_Name__c")
   )
-  const instructorName = pick(diagnostics, co, "Instructor_Name__c", "Instructor__c")
+  const instructorName = diagnostics.pick(co, "Instructor_Name__c", "Instructor__c")
 
   const canvasCourseUrl = canvasCourseId
     ? `${CANVAS_URL}/courses/${canvasCourseId}`

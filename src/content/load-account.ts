@@ -9,7 +9,7 @@
 
 import { isCanvasAuthError } from "../constants"
 import { groupByTerm, overallLda, type CanvasCourse, type TermGroup } from "./student-courses"
-import { pick, type DiagLog } from "./resolve"
+import { createDiagLog, type DiagLog } from "./resolve"
 
 export interface AccountResult {
   canvasUserId: string | null
@@ -35,7 +35,7 @@ export async function loadAccountCourses(
   accountId: string,
   deps: LoadAccountDeps,
 ): Promise<AccountResult> {
-  const diagnostics: DiagLog = []
+  const diagnostics = createDiagLog()
   const empty: AccountResult = { canvasUserId: null, accountName: null, termGroups: [], lastActivityAt: null, error: null, diagnostics }
 
   // 1. Fetch SF Account
@@ -49,8 +49,8 @@ export async function loadAccountCourses(
   if (deps.isStale()) return empty
 
   // 2. Extract Canvas User ID
-  const canvasUserId = pick(diagnostics, account, "Canvas_User_ID__pc", "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c")
-  const accountName = pick(diagnostics, account, "Name")
+  const canvasUserId = diagnostics.pick(account, "Canvas_User_ID__pc", "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c")
+  const accountName = diagnostics.pick(account, "Name")
 
   if (!canvasUserId) {
     return { ...empty, accountName, error: "no-canvas-id" }

@@ -6,7 +6,7 @@
  */
 
 import { CANVAS_URL, isCanvasAuthError } from "../constants"
-import { pick, diag, makeFieldAccessor, type DiagLog, type DiagEntry } from "./resolve"
+import { makeFieldAccessor, createDiagLog, type DiagLog, type DiagEntry } from "./resolve"
 import type { SoqlResult } from "./sfapi"
 import { cleanTermName } from "./field-utils"
 import { probeCanvasMasquerade } from "./load-canvas-messages"
@@ -152,37 +152,37 @@ async function resolveCopToCoId(copId: string, deps: LoadCaseDeps): Promise<{
   accountId: string | null
   preferredName: string | null
 }> {
-  const log: DiagLog = []
+  const log = createDiagLog()
   try {
     const cop = await deps.getRecord<Record<string, unknown>>("CourseOfferingParticipant", copId)
     deps.onUpdate({ copRaw: cop })
     const result = {
-      coId: pick(log, cop, "CourseOfferingId", "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c", "Course_Offering_ID__c", "CourseOffering__c"),
-      enrollmentId: pick(log, cop, "Canvas_Enrollment_ID__c", "CanvasEnrollmentId__c"),
-      contactId: pick(log, cop, "ParticipantContactId", "hed__Contact__c", "ContactId", "Contact__c"),
-      accountId: pick(log, cop, "ParticipantAccountId", "AccountId"),
-      preferredName: pick(log, cop, "Preferred_Student_Name__c", "PreferredName__c"),
+      coId: log.pick(cop, "CourseOfferingId", "Course_Offering__c", "CourseOfferingId__c", "hed__Course_Offering__c", "Course_Offering_ID__c", "CourseOffering__c"),
+      enrollmentId: log.pick(cop, "Canvas_Enrollment_ID__c", "CanvasEnrollmentId__c"),
+      contactId: log.pick(cop, "ParticipantContactId", "hed__Contact__c", "ContactId", "Contact__c"),
+      accountId: log.pick(cop, "ParticipantAccountId", "AccountId"),
+      preferredName: log.pick(cop, "Preferred_Student_Name__c", "PreferredName__c"),
     }
-    diag(log, "cop-resolved", `coId=${result.coId ?? "null"} preferredName=${result.preferredName ?? "null"} accountId=${result.accountId ?? "null"}`)
+    log.add("cop-resolved", `coId=${result.coId ?? "null"} preferredName=${result.preferredName ?? "null"} accountId=${result.accountId ?? "null"}`)
     deps.onUpdate({ diagnostics: log })
     deps.observeFields("CourseOfferingParticipant", log)
     return result
   } catch (e) {
     const log2: DiagLog = []
-    diag(log2, "cop-error", String(e))
+    log2.add("cop-error", String(e))
     deps.onUpdate({ diagnostics: log2 })
     return { coId: null, enrollmentId: null, contactId: null, accountId: null, preferredName: null }
   }
 }
 
 async function resolveFromAccount(accountId: string, canvas: CanvasState | null, deps: LoadCaseDeps): Promise<CanvasState | null> {
-  const log: DiagLog = []
+  const log = createDiagLog()
   try {
     const account = await deps.getRecord<Record<string, unknown>>("Account", accountId)
     deps.onUpdate({ contactRaw: account })
-    const canvasUserId = pick(log, account, "Canvas_User_ID__pc", "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c", "Canvas_User__c")
-    const genderIdentity = pick(log, account, "Gender_Identity__c", "GenderIdentity__c", "Gender__c", "Pronouns__c", "Preferred_Pronouns__c")
-    diag(log, "account-resolved", `canvasUserId=${canvasUserId ?? "null"} genderIdentity=${genderIdentity ?? "null"}`)
+    const canvasUserId = log.pick(account, "Canvas_User_ID__pc", "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c", "Canvas_User__c")
+    const genderIdentity = log.pick(account, "Gender_Identity__c", "GenderIdentity__c", "Gender__c", "Pronouns__c", "Preferred_Pronouns__c")
+    log.add("account-resolved", `canvasUserId=${canvasUserId ?? "null"} genderIdentity=${genderIdentity ?? "null"}`)
     deps.onUpdate({ diagnostics: log })
     deps.observeFields("Account", log)
     if (canvas) {
@@ -194,7 +194,7 @@ async function resolveFromAccount(accountId: string, canvas: CanvasState | null,
     }
   } catch (e) {
     const log2: DiagLog = []
-    diag(log2, "account-error", String(e))
+    log2.add("account-error", String(e))
     deps.onUpdate({ diagnostics: log2 })
   }
   return canvas
@@ -244,20 +244,20 @@ async function resolveStudentFromContact(
   canvas: CanvasState,
   deps: LoadCaseDeps,
 ): Promise<boolean> {
-  const log: DiagLog = []
+  const log = createDiagLog()
   try {
     const contact = await deps.getRecord<Record<string, unknown>>("Contact", contactId)
-    const canvasUserId = pick(log, contact, "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c")
+    const canvasUserId = log.pick(contact, "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c")
     if (canvasUserId) {
       deps.onUpdate({
-        canvas: { ...canvas, studentId: canvasUserId, studentName: pick(log, contact, "Name") ?? null },
+        canvas: { ...canvas, studentId: canvasUserId, studentName: log.pick(contact, "Name") ?? null },
         diagnostics: log,
         loadingStudent: false,
       })
       deps.observeFields("Contact", log)
       return true
     }
-    const email = pick(log, contact, "Email") ?? fallbackEmail
+    const email = log.pick(contact, "Email") ?? fallbackEmail
     deps.onUpdate({ diagnostics: log })
     deps.observeFields("Contact", log)
     if (email) return lookupCanvasStudentByEmail(email, canvas, deps)
@@ -369,22 +369,22 @@ async function resolveStudent(opts: {
 async function resolveCanvasFromCo(coId: string, onName: (name: string) => void, deps: LoadCaseDeps): Promise<string | null> {
   deps.onUpdate({ loadingCourseOffering: true, courseOfferingError: null })
 
-  const log: DiagLog = []
+  const log = createDiagLog()
   try {
     const co = await deps.getRecord<Record<string, unknown>>("CourseOffering", coId)
-    const name = pick(log, co, "Name")
+    const name = log.pick(co, "Name")
     if (name) onName(name)
 
-    const canvasId = pick(log, co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
+    const canvasId = log.pick(co, "Canvas_Course_ID__c", "CanvasCourseId__c", "Canvas_Course__c")
     deps.onUpdate({ loadingCourseOffering: false })
 
     if (!canvasId) {
-      diag(log, "canvas-id-missing", `CourseOffering ${coId} has no Canvas Course ID`)
+      log.add("canvas-id-missing", `CourseOffering ${coId} has no Canvas Course ID`)
       deps.onUpdate({ diagnostics: log, courseOfferingError: "No Canvas Course ID on this Course Offering" })
       return null
     }
 
-    diag(log, "canvas-id-resolved", canvasId)
+    log.add("canvas-id-resolved", canvasId)
     deps.onUpdate({
       diagnostics: log,
       canvas: { courseId: canvasId, url: `${CANVAS_URL}/courses/${canvasId}`, enrollmentUrl: null, studentId: null, studentName: null },
@@ -443,38 +443,38 @@ async function resolveInstructor(
   deps.onUpdate({ instructor })
 
   if (instructorFieldValue && /^[a-zA-Z0-9]{15,18}$/.test(instructorFieldValue)) {
-    const log: DiagLog = []
+    const log = createDiagLog()
     try {
       const account = await deps.getRecord<Record<string, unknown>>("Account", instructorFieldValue)
-      const canvasUserId = pick(log, account, "Canvas_User_ID__pc", "Canvas_User_ID__c")
-      const accountName = pick(log, account, "Name")
+      const canvasUserId = log.pick(account, "Canvas_User_ID__pc", "Canvas_User_ID__c")
+      const accountName = log.pick(account, "Name")
       deps.onUpdate({ diagnostics: log })
       if (canvasUserId) {
         instructor.canvasId = canvasUserId
         if (accountName) instructor.name = accountName
-        diag(log, "instructor-lookup", `account Canvas_User_ID__pc=${canvasUserId} name=${accountName ?? "null"}`)
+        log.add("instructor-lookup", `account Canvas_User_ID__pc=${canvasUserId} name=${accountName ?? "null"}`)
         deps.onUpdate({ instructor: { ...instructor } })
         return
       }
       if (accountName && !name) instructor.name = accountName
-      diag(log, "instructor-lookup", `account found but no Canvas user ID`)
+      log.add("instructor-lookup", `account found but no Canvas user ID`)
     } catch (e) {
-      diag(log, "instructor-lookup", `account fetch failed: ${e}`)
+      log.add("instructor-lookup", `account fetch failed: ${e}`)
       try {
         const contact = await deps.getRecord<Record<string, unknown>>("Contact", instructorFieldValue)
-        const canvasUserId = pick(log, contact, "Canvas_User_ID__c")
-        const contactName = pick(log, contact, "Name")
+        const canvasUserId = log.pick(contact, "Canvas_User_ID__c")
+        const contactName = log.pick(contact, "Name")
         deps.onUpdate({ diagnostics: log })
         if (canvasUserId) {
           instructor.canvasId = canvasUserId
           if (contactName) instructor.name = contactName
-          diag(log, "instructor-lookup", `contact Canvas_User_ID__c=${canvasUserId}`)
+          log.add("instructor-lookup", `contact Canvas_User_ID__c=${canvasUserId}`)
           deps.onUpdate({ instructor: { ...instructor } })
           return
         }
         if (contactName && !name) instructor.name = contactName
       } catch {
-        diag(log, "instructor-lookup", `contact fetch also failed`)
+        log.add("instructor-lookup", `contact fetch also failed`)
       }
     }
   }
@@ -548,11 +548,11 @@ export async function loadCase(recordId: string, deps: LoadCaseDeps): Promise<vo
     const fieldMap = await deps.describeObject("Case").catch(() => null)
     if (deps.isStale()) return
 
-    const diagnostics: DiagEntry[] = []
-    if (fieldMap) diag(diagnostics, "describe", `Case: ${fieldMap.size} fields`)
+    const diagnostics = createDiagLog()
+    if (fieldMap) diagnostics.add("describe", `Case: ${fieldMap.size} fields`)
     const f = makeFieldAccessor(diagnostics, rec, fieldMap)
 
-    const rawContactId = pick(diagnostics, rec, "ContactId")
+    const rawContactId = diagnostics.pick(rec, "ContactId")
     const caseData: CaseData = {
       caseNumber: f("Case Number", "CaseNumber") ?? "",
       status: f("Status", "Status") ?? "unknown",
@@ -673,7 +673,7 @@ export async function loadCase(recordId: string, deps: LoadCaseDeps): Promise<vo
 
     const instructorName = f("Instructor", "Instructor_Name__c", "Instructor__c")
     const instructorEmail = f("Instructor Email", "Instructor_Email__c")
-    const instructorRaw = pick([], rec, "Instructor__c", "Instructor_Name__c")
+    const instructorRaw = diagnostics.pick(rec, "Instructor__c", "Instructor_Name__c")
     if (instructorName || instructorEmail || instructorRaw) {
       resolveInstructor(instructorName, instructorEmail, instructorRaw, canvas?.courseId ?? null, deps)
     }
@@ -687,7 +687,7 @@ export async function loadCase(recordId: string, deps: LoadCaseDeps): Promise<vo
     }
 
     const resolvedContactId = rawContactId ?? copContactId
-    diag([], "prior-cases-contact", `rawContactId=${rawContactId ?? "null"} copContactId=${copContactId ?? "null"} resolved=${resolvedContactId ?? "null"}`)
+    diagnostics.add("prior-cases-contact", `rawContactId=${rawContactId ?? "null"} copContactId=${copContactId ?? "null"} resolved=${resolvedContactId ?? "null"}`)
     if (resolvedContactId) {
       loadPriorCases(resolvedContactId, recordId, deps)
     } else {
