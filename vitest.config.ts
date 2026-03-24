@@ -8,8 +8,12 @@ export default defineConfig({
     // Component tests opt into jsdom via @vitest-environment jsdom comment.
     environment: "node",
     globals: true,
+    environmentMatchGlobs: [
+      ["src/components/**", "jsdom"],
+    ],
   },
   resolve: {
+    // Needed for solid-js JSX in jsdom tests
     conditions: ["development", "browser"],
   },
 })
