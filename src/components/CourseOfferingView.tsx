@@ -5,25 +5,23 @@
  * current scores, grades, and last activity dates.
  */
 
-import { createSignal, onCleanup, Show, For } from "solid-js"
-import { state } from "../content/core"
+import { createSignal, Show, For } from "solid-js"
 import type { EnrolledStudent } from "../content/load-course-offering"
 import { scoreColor, formatScore, formatLda } from "./format"
+import { useStore } from "./useStore"
+import { CANVAS_URL } from "../constants"
 
 type SortKey = "name" | "score" | "lda"
 
 export function CourseOfferingView() {
-  const [version, setVersion] = createSignal(0)
-  const bump = () => setVersion(v => v + 1)
-  state.listeners.add(bump)
-  onCleanup(() => state.listeners.delete(bump))
+  const get = useStore()
 
   const [sortKey, setSortKey] = createSignal<SortKey>("name")
   const [sortAsc, setSortAsc] = createSignal(true)
 
-  const data = () => { version(); return state.offeringData }
-  const loading = () => { version(); return state.loading }
-  const error = () => { version(); return state.error }
+  const data = get("offeringData")
+  const loading = get("loading")
+  const error = get("error")
 
   function toggleSort(key: SortKey) {
     if (sortKey() === key) setSortAsc(a => !a)
@@ -124,7 +122,7 @@ export function CourseOfferingView() {
               <div class="ueu-canvas-session-prompt">
                 <p>Canvas session required for grades.</p>
                 <p>
-                  <a href="https://unity.instructure.com" target="_blank" rel="noopener noreferrer">
+                  <a href={CANVAS_URL} target="_blank" rel="noopener noreferrer">
                     Open Canvas
                   </a>
                   {" "}and log in.

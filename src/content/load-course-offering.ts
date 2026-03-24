@@ -7,6 +7,7 @@
  * Pure async function with injected dependencies for testability.
  */
 
+import { CANVAS_URL, isCanvasAuthError } from "../constants"
 import { pick, type DiagLog } from "./resolve"
 import type { SoqlResult } from "./sfapi"
 import { cleanTermName } from "./field-utils"
@@ -90,7 +91,7 @@ export async function loadCourseOffering(
   const instructorName = pick(diagnostics, co, "Instructor_Name__c", "Instructor__c")
 
   const canvasCourseUrl = canvasCourseId
-    ? `https://unity.instructure.com/courses/${canvasCourseId}`
+    ? `${CANVAS_URL}/courses/${canvasCourseId}`
     : null
 
   if (deps.isStale()) return empty
@@ -150,8 +151,7 @@ export async function loadCourseOffering(
       for (const e of enrollments) canvasRoster.set(e.user_id, e)
       diagnostics.push({ type: "canvas-roster", detail: `${enrollments.length} Canvas enrollment(s)` })
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      if (msg.includes("401")) {
+      if (isCanvasAuthError(e)) {
         return { ...empty, offeringName, canvasCourseId, canvasCourseUrl, termName, instructorName, instructorCanvasId: null, students: [], error: "canvas-session-required", diagnostics }
       }
       diagnostics.push({ type: "canvas-roster-error", detail: String(e) })

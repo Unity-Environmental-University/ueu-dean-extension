@@ -17,7 +17,7 @@ import { loadAccountCases as loadAccountCasesImpl, type AccountCasesResult } fro
 import { probeCanvasMasquerade, loadCanvasConversations, type CanvasConversation } from "./load-canvas-messages"
 import type { TermGroup } from "./student-courses"
 
-const CANVAS_HOST = "unity.instructure.com"
+import { CANVAS_HOST } from "../constants"
 
 async function checkCanvasSession(): Promise<boolean> {
   const result = await browser.runtime.sendMessage({ type: "canvas-session-check" }) as { hasSession: boolean }
@@ -160,6 +160,31 @@ export const state = {
 }
 
 
+/** Reset all case-specific state fields. Called on new case load and on page exit. */
+function clearCaseState() {
+  state.caseData = null
+  state.dishonesty = null
+  state.gradeAppeal = null
+  state.instructor = null
+  state.canvas = null
+  state.copRaw = null
+  state.contactRaw = null
+  state.priorCases = null
+  state.loadingPriorCases = false
+  state.loadingCourseOffering = false
+  state.loadingStudent = false
+  state.courseOfferingError = null
+  state.studentError = null
+}
+
+/** Reset all conversation/Canvas permission state. Called on new load and page exit. */
+function clearConversationState() {
+  state.canMasquerade = null
+  state.conversations = null
+  state.loadingConversations = false
+  state.conversationError = null
+}
+
 /**
  * Navigation token — incremented on every navigation event.
  * Async operations capture the token at start and bail if it changes,
@@ -211,24 +236,9 @@ function makeCaseDeps(token: number) {
 
 async function loadCaseWrapper(recordId: string, token: number) {
   state.loading = true
-  state.loadingCourseOffering = false
-  state.loadingStudent = false
   state.error = null
-  state.courseOfferingError = null
-  state.studentError = null
-  state.caseData = null
-  state.priorCases = null
-  state.loadingPriorCases = false
-  state.dishonesty = null
-  state.gradeAppeal = null
-  state.instructor = null
-  state.canvas = null
-  state.copRaw = null
-  state.contactRaw = null
-  state.canMasquerade = null
-  state.conversations = null
-  state.loadingConversations = false
-  state.conversationError = null
+  clearCaseState()
+  clearConversationState()
   state.diagnostics = []
   state.notify()
 
@@ -307,10 +317,7 @@ async function loadAccount(recordId: string, token: number) {
   state.error = null
   state.accountData = null
   state.accountCases = null
-  state.canMasquerade = null
-  state.conversations = null
-  state.loadingConversations = false
-  state.conversationError = null
+  clearConversationState()
   state.diagnostics = []
   state.notify()
 
@@ -397,16 +404,10 @@ async function doNavigate() {
   if (!parsed) {
     if (state.page) {
       state.page = null
-      state.caseData = null
-      state.dishonesty = null
-      state.gradeAppeal = null
-      state.instructor = null
-      state.canvas = null
+      clearCaseState()
       state.accountData = null
       state.accountCases = null
-      state.conversations = null
-      state.loadingConversations = false
-      state.conversationError = null
+      clearConversationState()
       state.loading = false
       state.error = null
       state.notify()

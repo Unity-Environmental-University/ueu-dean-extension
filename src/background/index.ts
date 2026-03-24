@@ -58,7 +58,7 @@ async function sfApiFetch(sfHost: string, path: string): Promise<unknown> {
   return res.json()
 }
 
-const CANVAS_HOST = "unity.instructure.com"
+import { CANVAS_HOST } from "../constants"
 
 async function canvasApiFetch(path: string, options: { method?: string; body?: unknown } = {}): Promise<unknown> {
   const cookie = await browser.cookies.get({

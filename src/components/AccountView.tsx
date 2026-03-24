@@ -4,32 +4,27 @@
  * Reads from state.accountData (populated by loadAccount in core.ts).
  */
 
-import { createSignal, createEffect, onCleanup, Show, For } from "solid-js"
-import browser from "webextension-polyfill"
-import { state, refresh, loadConversations } from "../content/core"
+import { createSignal, createEffect, Show, For } from "solid-js"
+import { loadConversations } from "../content/core"
+import { CANVAS_URL } from "../constants"
 import { isCurrentTerm, termAverage } from "../content/student-courses"
 import { scoreColor, formatScore, formatLda } from "./format"
+import { useStore, useCanvasPermissions, useSessionPoll } from "./useStore"
 
 export function AccountView() {
-  const [version, setVersion] = createSignal(0)
-  const bump = () => setVersion(v => v + 1)
-  state.listeners.add(bump)
-  onCleanup(() => state.listeners.delete(bump))
+  const get = useStore()
 
   const [selectedTerm, setSelectedTerm] = createSignal<number | null>(null)
   const [expandedCourse, setExpandedCourse] = createSignal<number | null>(null)
 
-  const accountData = () => { version(); return state.accountData }
-  const loading = () => { version(); return state.loading }
-  const error = () => { version(); return state.error }
-  const canMasquerade = () => { version(); return state.canMasquerade }
-  const canMasqueradeCache = () => { version(); return state.canMasqueradeCache }
-  const showCanvasFeatures = () => canMasquerade() === true || (canMasquerade() === null && canMasqueradeCache() === true)
-  const canvasFeaturesPending = () => canMasquerade() === null && canMasqueradeCache() === true
-  const accountCases = () => { version(); return state.accountCases }
-  const conversations = () => { version(); return state.conversations }
-  const loadingConversations = () => { version(); return state.loadingConversations }
-  const conversationError = () => { version(); return state.conversationError }
+  const accountData = get("accountData")
+  const loading = get("loading")
+  const error = get("error")
+  const { showCanvasFeatures, canvasFeaturesPending } = useCanvasPermissions(get)
+  const accountCases = get("accountCases")
+  const conversations = get("conversations")
+  const loadingConversations = get("loadingConversations")
+  const conversationError = get("conversationError")
 
   // Auto-select current term when data loads
   createEffect(() => {
@@ -39,19 +34,7 @@ export function AccountView() {
     if (current) setSelectedTerm(current.termId)
   })
 
-  // Poll for Canvas session when auth is needed
-  createEffect(() => {
-    const data = accountData()
-    if (data?.error !== "canvas-session-required") return
-    const interval = setInterval(async () => {
-      const result = await browser.runtime.sendMessage({ type: "canvas-session-check" }) as { hasSession: boolean }
-      if (result?.hasSession) {
-        clearInterval(interval)
-        refresh()
-      }
-    }, 1500)
-    onCleanup(() => clearInterval(interval))
-  })
+  useSessionPoll(() => accountData()?.error === "canvas-session-required")
 
   const visibleTerms = () => {
     const data = accountData()
@@ -117,7 +100,7 @@ export function AccountView() {
               <div class="ueu-canvas-session-prompt">
                 <p>Canvas session required.</p>
                 <p>
-                  <a href="https://unity.instructure.com" target="_blank" rel="noopener noreferrer">
+                  <a href={CANVAS_URL} target="_blank" rel="noopener noreferrer">
                     Open Canvas
                   </a>
                   {" "}and log in — this will update automatically.
@@ -138,11 +121,11 @@ export function AccountView() {
             {/* Canvas links when we have a user ID */}
             <Show when={data().canvasUserId}>
               <div class="ueu-canvas-links" style={{"margin-bottom": "0.5rem"}}>
-                <a href={`https://unity.instructure.com/users/${data().canvasUserId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                <a href={`${CANVAS_URL}/users/${data().canvasUserId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                   Profile &rarr;
                 </a>
                 <Show when={showCanvasFeatures()}>
-                  <a href={`https://unity.instructure.com/users/${data().canvasUserId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
+                  <a href={`${CANVAS_URL}/users/${data().canvasUserId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
                     Act as &rarr;
                   </a>
                 </Show>
@@ -270,7 +253,7 @@ export function AccountView() {
                                     </div>
                                     <div class="ueu-detail-row">
                                       <a
-                                        href={`https://unity.instructure.com/courses/${course.courseId}`}
+                                        href={`${CANVAS_URL}/courses/${course.courseId}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         class="ueu-canvas-link"

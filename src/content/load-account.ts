@@ -7,6 +7,7 @@
  * Pure async function with injected dependencies for testability.
  */
 
+import { isCanvasAuthError } from "../constants"
 import { groupByTerm, overallLda, type CanvasCourse, type TermGroup } from "./student-courses"
 import { pick, type DiagLog } from "./resolve"
 
@@ -64,10 +65,10 @@ export async function loadAccountCourses(
       `/api/v1/users/${canvasUserId}/courses?include[]=term&include[]=total_scores&include[]=computed_current_score&include[]=enrollments&per_page=100&state[]=available&state[]=completed`
     )
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    if (msg.includes("401:") || msg.includes("401 ")) {
+    if (isCanvasAuthError(e)) {
       return { ...empty, canvasUserId, accountName, error: "canvas-session-required" }
     }
+    const msg = e instanceof Error ? e.message : String(e)
     return { ...empty, canvasUserId, accountName, error: `Canvas error: ${msg}` }
   }
 

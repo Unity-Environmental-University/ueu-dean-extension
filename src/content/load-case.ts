@@ -5,6 +5,7 @@
  * Communicates back to core via onUpdate() callback — same pattern as load-account.ts.
  */
 
+import { CANVAS_URL, isCanvasAuthError } from "../constants"
 import { pick, diag, makeFieldAccessor, type DiagLog, type DiagEntry } from "./resolve"
 import type { SoqlResult } from "./sfapi"
 import { cleanTermName } from "./field-utils"
@@ -121,9 +122,6 @@ function classifyIncident(raw: string | null): string {
   return "other"
 }
 
-function isAuthError(e: unknown): boolean {
-  return e instanceof Error && e.message.includes(" 401:")
-}
 
 function findExactEmailMatch(
   users: Array<{ id: number; name: string; email?: string; login_id?: string }>,
@@ -210,7 +208,7 @@ async function resolveStudentFromEnrollment(
 ): Promise<boolean> {
   const courseId = canvas.courseId
   try {
-    const enrollmentUrl = `https://unity.instructure.com/courses/${courseId}/enrollments/${enrollmentId}`
+    const enrollmentUrl = `${CANVAS_URL}/courses/${courseId}/enrollments/${enrollmentId}`
     deps.onUpdate({ canvas: { ...canvas, enrollmentUrl }, diagnostics: [{ type: "enrollment-url", detail: enrollmentUrl }] })
     const enrollments = await deps.canvasFetch<Array<{ id: number; user_id: number; user: { name: string } }>>(
       `/api/v1/courses/${courseId}/enrollments?enrollment_id[]=${enrollmentId}&type[]=StudentEnrollment&state[]=active&state[]=inactive&state[]=completed`
@@ -227,7 +225,7 @@ async function resolveStudentFromEnrollment(
     deps.onUpdate({ diagnostics: [{ type: "enrollment-lookup", detail: "enrollment found but empty — falling back" }] })
   } catch (e) {
     deps.onUpdate({ diagnostics: [{ type: "enrollment-lookup", detail: `failed: ${e}` }] })
-    if (isAuthError(e)) {
+    if (isCanvasAuthError(e)) {
       deps.onUpdate({ loadingStudent: false, studentError: "canvas-session-required" })
       return true // handled
     }
@@ -290,7 +288,7 @@ async function lookupCanvasStudentByEmail(email: string, canvas: CanvasState, de
       }
       deps.onUpdate({ diagnostics: [{ type: "student-email-lookup", detail: `course-scoped: ${users.length} result(s), no exact match` }] })
     } catch (e) {
-      if (isAuthError(e)) {
+      if (isCanvasAuthError(e)) {
         deps.onUpdate({ loadingStudent: false, studentError: "canvas-session-required" })
         return true
       }
@@ -312,7 +310,7 @@ async function lookupCanvasStudentByEmail(email: string, canvas: CanvasState, de
       return true
     }
   } catch (e) {
-    if (isAuthError(e)) {
+    if (isCanvasAuthError(e)) {
       deps.onUpdate({ loadingStudent: false, studentError: "canvas-session-required" })
       return true
     }
@@ -389,7 +387,7 @@ async function resolveCanvasFromCo(coId: string, onName: (name: string) => void,
     diag(log, "canvas-id-resolved", canvasId)
     deps.onUpdate({
       diagnostics: log,
-      canvas: { courseId: canvasId, url: `https://unity.instructure.com/courses/${canvasId}`, enrollmentUrl: null, studentId: null, studentName: null },
+      canvas: { courseId: canvasId, url: `${CANVAS_URL}/courses/${canvasId}`, enrollmentUrl: null, studentId: null, studentName: null },
     })
     deps.observeFields("CourseOffering", log)
     return canvasId
@@ -416,7 +414,7 @@ async function resolveCanvasAndStudent(opts: {
   // canvas was set via onUpdate inside resolveCanvasFromCo — rebuild local ref
   const canvas: CanvasState = {
     courseId: canvasId,
-    url: `https://unity.instructure.com/courses/${canvasId}`,
+    url: `${CANVAS_URL}/courses/${canvasId}`,
     enrollmentUrl: null,
     studentId: null,
     studentName: null,

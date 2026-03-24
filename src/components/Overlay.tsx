@@ -4,13 +4,14 @@
  * Everything renders inside the Shadow DOM so our styles apply.
  */
 
-import { createSignal, createResource, Show, onCleanup } from "solid-js"
+import { createSignal, createResource, Show } from "solid-js"
 import browser from "webextension-polyfill"
 import { CaseView } from "./CaseView"
 import { AccountView } from "./AccountView"
 import { CourseOfferingView } from "./CourseOfferingView"
 import { getPermissions, setPermissions, revokeAll, getSettings, saveSettings } from "../content/permissions"
 import { refresh, state } from "../content/core"
+import { useStore } from "./useStore"
 
 export function Overlay() {
   const [open, setOpen] = createSignal(false)
@@ -26,12 +27,8 @@ export function Overlay() {
   const [supportId, setSupportId] = createSignal("")
   getSettings().then(s => setSupportId(s.supportCanvasId))
 
-  // Reactive state version — bumped whenever features.ts calls state.notify()
-  const [version, setVersion] = createSignal(0)
-  const bump = () => setVersion(v => v + 1)
-  state.listeners.add(bump)
-  onCleanup(() => state.listeners.delete(bump))
-  const diagnostics = () => { version(); return state.diagnostics }
+  const get = useStore()
+  const diagnostics = get("diagnostics")
 
   const hasConsent = () => perms()?.sfApi ?? false
 

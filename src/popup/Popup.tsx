@@ -1,7 +1,8 @@
 import { createSignal, createResource, For, Show } from "solid-js"
 import { fetchJson, fetchAllPages, type CourseData, type AccountData } from "@ueu/canvas-alkahest"
 
-const CANVAS = "https://unity.instructure.com"
+import { CANVAS_URL } from "../constants"
+const CANVAS = CANVAS_URL
 const cfg = { baseUrl: CANVAS }
 
 async function searchAllCourses(query: string): Promise<CourseData[]> {

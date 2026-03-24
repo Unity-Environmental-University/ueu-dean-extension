@@ -6,10 +6,12 @@
  * All data comes from SF REST API — no DOM scraping.
  */
 
-import { createSignal, onCleanup, Show, createEffect, For, createMemo } from "solid-js"
+import { createSignal, Show, createEffect, For, createMemo } from "solid-js"
 import browser from "webextension-polyfill"
-import { state, refresh, loadConversations } from "../content/core"
+import { loadConversations } from "../content/core"
+import { CANVAS_URL } from "../constants"
 import { getSettings, saveSettings } from "../content/permissions"
+import { useStore, useCanvasPermissions, useSessionPoll } from "./useStore"
 
 const INCIDENT_LABELS: Record<string, string> = {
   plagiarism: "Plagiarism",
@@ -35,34 +37,26 @@ function acronym(phrase: string): string {
 }
 
 export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
-  const [version, setVersion] = createSignal(0)
-  const bump = () => setVersion(v => v + 1)
-  state.listeners.add(bump)
-  onCleanup(() => state.listeners.delete(bump))
+  const get = useStore()
 
-  const caseData = () => { version(); return state.caseData }
-  const dishonesty = () => { version(); return state.dishonesty }
-  const gradeAppeal = () => { version(); return state.gradeAppeal }
-  const canvas = () => { version(); return state.canvas }
-  const loading = () => { version(); return state.loading }
-  const loadingCO = () => { version(); return state.loadingCourseOffering }
-  const loadingStudent = () => { version(); return state.loadingStudent }
-  const error = () => { version(); return state.error }
-  const courseOfferingError = () => { version(); return state.courseOfferingError }
-  const studentError = () => { version(); return state.studentError }
-  const page = () => { version(); return state.page }
-  const priorCases = () => { version(); return state.priorCases }
-  const loadingPriorCases = () => { version(); return state.loadingPriorCases }
-  const instructor = () => { version(); return state.instructor }
-  const canMasquerade = () => { version(); return state.canMasquerade }
-  const canMasqueradeCache = () => { version(); return state.canMasqueradeCache }
-  // Show Canvas features if verified, or if cache says yes while re-verifying this session
-  const showCanvasFeatures = () => canMasquerade() === true || (canMasquerade() === null && canMasqueradeCache() === true)
-  // Ghost (dim + disable) when still verifying but cache says we had access
-  const canvasFeaturesPending = () => canMasquerade() === null && canMasqueradeCache() === true
-  const conversations = () => { version(); return state.conversations }
-  const loadingConversations = () => { version(); return state.loadingConversations }
-  const conversationError = () => { version(); return state.conversationError }
+  const caseData = get("caseData")
+  const dishonesty = get("dishonesty")
+  const gradeAppeal = get("gradeAppeal")
+  const canvas = get("canvas")
+  const loading = get("loading")
+  const loadingCO = get("loadingCourseOffering")
+  const loadingStudent = get("loadingStudent")
+  const error = get("error")
+  const courseOfferingError = get("courseOfferingError")
+  const studentError = get("studentError")
+  const page = get("page")
+  const priorCases = get("priorCases")
+  const loadingPriorCases = get("loadingPriorCases")
+  const instructor = get("instructor")
+  const { showCanvasFeatures, canvasFeaturesPending } = useCanvasPermissions(get)
+  const conversations = get("conversations")
+  const loadingConversations = get("loadingConversations")
+  const conversationError = get("conversationError")
   const anyError = () => error() || courseOfferingError() || (studentError() && studentError() !== "canvas-session-required")
 
   // Drawer state
@@ -149,18 +143,7 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
     }
   }
 
-  // Poll for Canvas session when the auth prompt is showing
-  createEffect(() => {
-    if (studentError() !== "canvas-session-required") return
-    const interval = setInterval(async () => {
-      const result = await browser.runtime.sendMessage({ type: "canvas-session-check" }) as { hasSession: boolean }
-      if (result?.hasSession) {
-        clearInterval(interval)
-        refresh()
-      }
-    }, 1500)
-    onCleanup(() => clearInterval(interval))
-  })
+  useSessionPoll(() => studentError() === "canvas-session-required")
 
   return (
     <div>
@@ -402,11 +385,11 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                   <a href={`${c().url}/grades/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                     Grades &rarr;
                   </a>
-                  <a href={`https://unity.instructure.com/users/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                  <a href={`${CANVAS_URL}/users/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                     Profile &rarr;
                   </a>
                   <Show when={showCanvasFeatures()}>
-                    <a href={`https://unity.instructure.com/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
+                    <a href={`${CANVAS_URL}/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
                       Act as &rarr;
                     </a>
                   </Show>
@@ -490,16 +473,16 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
             <p class="ueu-muted" style={{"margin-bottom": "0.4rem"}}>{i().name ?? i().email}</p>
             <Show when={i().canvasId}>
               <div class="ueu-canvas-links">
-                <a href={`https://unity.instructure.com/users/${i().canvasId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                <a href={`${CANVAS_URL}/users/${i().canvasId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                   Profile &rarr;
                 </a>
                 <Show when={canvas()}>
-                  <a href={`https://unity.instructure.com/courses/${canvas()!.courseId}/users/${i().canvasId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+                  <a href={`${CANVAS_URL}/courses/${canvas()!.courseId}/users/${i().canvasId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
                     In Course &rarr;
                   </a>
                 </Show>
                 <Show when={showCanvasFeatures()}>
-                  <a href={`https://unity.instructure.com/users/${i().canvasId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
+                  <a href={`${CANVAS_URL}/users/${i().canvasId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
                     Act as &rarr;
                   </a>
                 </Show>
