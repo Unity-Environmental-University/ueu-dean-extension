@@ -85,6 +85,9 @@ export const state = {
   /** Raw Case record for debugging (keys only — no values displayed) */
   caseRaw: null as Record<string, unknown> | null,
 
+  /** Raw CourseOffering record for debugging */
+  coRaw: null as Record<string, unknown> | null,
+
   /** Diagnostic log — field misses and resolution path for this page load */
   diagnostics: [] as DiagEntry[],
 

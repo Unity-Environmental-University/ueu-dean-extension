@@ -35,6 +35,7 @@ export function DevTools(props: {
       <button onClick={async () => {
         const sections: string[] = []
         if (state.caseRaw) sections.push(`## Case fields (${Object.keys(state.caseRaw).length})\n${Object.keys(state.caseRaw).sort().join("\n")}`)
+        if (state.coRaw) sections.push(`## CourseOffering fields (${Object.keys(state.coRaw).length})\n${Object.keys(state.coRaw).sort().join("\n")}`)
         if (state.copRaw) sections.push(`## COP fields (${Object.keys(state.copRaw).length})\n${Object.keys(state.copRaw).sort().join("\n")}`)
         if (state.contactRaw) sections.push(`## Contact/Account fields (${Object.keys(state.contactRaw).length})\n${Object.keys(state.contactRaw).sort().join("\n")}`)
         if (sections.length === 0) sections.push("No raw records available — navigate to a Case page first")
@@ -50,6 +51,12 @@ export function DevTools(props: {
         <details class="ueu-dev-raw">
           <summary>Case fields ({Object.keys(state.caseRaw!).length})</summary>
           <pre class="ueu-dev-raw-pre">{Object.keys(state.caseRaw!).sort().join("\n")}</pre>
+        </details>
+      </Show>
+      <Show when={state.coRaw}>
+        <details class="ueu-dev-raw">
+          <summary>CO fields ({Object.keys(state.coRaw!).length})</summary>
+          <pre class="ueu-dev-raw-pre">{Object.keys(state.coRaw!).sort().join("\n")}</pre>
         </details>
       </Show>
       <Show when={state.copRaw}>

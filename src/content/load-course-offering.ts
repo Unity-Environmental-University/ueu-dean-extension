@@ -42,6 +42,8 @@ export interface CourseOfferingResult {
   students: EnrolledStudent[]
   error: string | null
   diagnostics: DiagLog
+  /** Raw CO record for field name dump */
+  coRaw: Record<string, unknown> | null
 }
 
 interface CanvasEnrollmentEntry {
@@ -71,6 +73,7 @@ export async function loadCourseOffering(
     students: [],
     error: null,
     diagnostics,
+    coRaw: null,
   }
 
   // 1. Fetch the CourseOffering record
@@ -197,5 +200,6 @@ export async function loadCourseOffering(
     students,
     error: null,
     diagnostics,
+    coRaw: co,
   }
 }

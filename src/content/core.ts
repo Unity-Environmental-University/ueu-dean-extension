@@ -87,6 +87,7 @@ async function loadCourseOffering(recordId: string, token: number) {
   if (stale(token)) return
 
   state.offeringData = result
+  state.coRaw = result.coRaw
   state.diagnostics.push(...result.diagnostics)
 
   if (result.canvasCourseId) {
