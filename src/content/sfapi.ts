@@ -13,11 +13,19 @@ function getSfHost(): string {
 }
 
 async function sfFetch<T>(path: string): Promise<T> {
-  const result = await browser.runtime.sendMessage({
-    type: "sf-api",
-    sfHost: getSfHost(),
-    path,
-  })
+  let result: any
+  try {
+    result = await browser.runtime.sendMessage({
+      type: "sf-api",
+      sfHost: getSfHost(),
+      path,
+    })
+  } catch (e) {
+    if (String(e).includes("Extension context invalidated")) {
+      throw new Error("Extension was reloaded — please refresh this page")
+    }
+    throw e
+  }
 
   if (result?.error) throw new Error(result.error)
   return result as T

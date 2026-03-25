@@ -26,16 +26,28 @@ export { state } from "./state"
 
 // ── Canvas API helpers ───────────────────────────────────────────────────────
 
+function wrapContextError(e: unknown): never {
+  if (String(e).includes("Extension context invalidated")) {
+    throw new Error("Extension was reloaded — please refresh this page")
+  }
+  throw e
+}
+
 async function checkCanvasSession(): Promise<boolean> {
-  const result = await browser.runtime.sendMessage({ type: "canvas-session-check" }) as { hasSession: boolean }
-  return !!result?.hasSession
+  try {
+    const result = await browser.runtime.sendMessage({ type: "canvas-session-check" }) as { hasSession: boolean }
+    return !!result?.hasSession
+  } catch (e) { wrapContextError(e) }
 }
 
 async function canvasFetch<T>(path: string): Promise<T> {
-  const result = await browser.runtime.sendMessage({
-    type: "canvas-api",
-    path,
-  })
+  let result: any
+  try {
+    result = await browser.runtime.sendMessage({
+      type: "canvas-api",
+      path,
+    })
+  } catch (e) { wrapContextError(e) }
   if (result?.error) throw new Error(result.error)
   return result as T
 }
