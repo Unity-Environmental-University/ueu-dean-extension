@@ -44,6 +44,7 @@ export default defineConfig({
   define: {
     __SUPPORT_CANVAS_ID__: JSON.stringify(process.env.SUPPORT_CANVAS_ID ?? "13279328"),
     __FEEDBACK_EMAIL__: JSON.stringify(process.env.FEEDBACK_EMAIL ?? "hlarsson@unity.edu"),
+    __BUILD_HASH__: JSON.stringify(new Date().toISOString().slice(0, 16)),
   },
   plugins: [
     solid(),

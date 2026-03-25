@@ -26,7 +26,7 @@ export function DevTools(props: {
 }) {
   return (
     <details class="ueu-dev">
-      <summary>Dev</summary>
+      <summary>Dev <span style={{"font-size": "0.6rem", "color": "#999"}}>({__BUILD_HASH__})</span></summary>
       <button onClick={props.onCopyState} class={props.copied() ? "ueu-btn-copied" : ""}>
         {props.copied() ? "Copied!" : "Copy state"}
       </button>
