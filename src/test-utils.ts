@@ -122,6 +122,57 @@ export const CASE_STATUSES = ["Open", "In Progress", "Closed", "Resolved"] as co
 export const CASE_TYPES = ["Academic Dishonesty", "Grade Appeal", "General Inquiry", "Withdrawal"] as const
 
 /** Arbitrary for a raw SF case record (CaseListRecord shape) */
+// ── Canvas course arbitraries ────────────────────────────────────────────────
+
+import type { CanvasTerm, CanvasEnrollment, CanvasCourse } from "./content/student-courses"
+
+export const arbCanvasTerm: fc.Arbitrary<CanvasTerm> = fc.record({
+  id: fc.nat(),
+  name: fc.string({ minLength: 1 }),
+  start_at: fc.oneof(
+    fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01"), noInvalidDate: true }).map(d => d.toISOString()),
+    fc.constant(null),
+  ),
+  end_at: fc.oneof(
+    fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01"), noInvalidDate: true }).map(d => d.toISOString()),
+    fc.constant(null),
+  ),
+})
+
+export const arbCanvasEnrollment: fc.Arbitrary<CanvasEnrollment> = fc.record({
+  type: fc.constantFrom("StudentEnrollment", "TeacherEnrollment", "ObserverEnrollment"),
+  enrollment_state: fc.constantFrom("active", "completed", "inactive"),
+  computed_current_score: fc.oneof(fc.double({ min: 0, max: 100, noNaN: true }), fc.constant(null)),
+  computed_final_score: fc.oneof(fc.double({ min: 0, max: 100, noNaN: true }), fc.constant(null)),
+  computed_current_grade: fc.oneof(fc.constantFrom("A", "B", "C", "D", "F"), fc.constant(null)),
+  computed_final_grade: fc.oneof(fc.constantFrom("A", "B", "C", "D", "F"), fc.constant(null)),
+  last_activity_at: fc.oneof(
+    fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01"), noInvalidDate: true }).map(d => d.toISOString()),
+    fc.constant(null),
+  ),
+})
+
+export const arbCanvasCourse = (term: CanvasTerm): fc.Arbitrary<CanvasCourse> =>
+  fc.record({
+    id: fc.nat(),
+    name: fc.string({ minLength: 1 }),
+    course_code: fc.string({ minLength: 1 }),
+    enrollment_term_id: fc.constant(term.id),
+    term: fc.constant(term),
+    enrollments: fc.array(arbCanvasEnrollment, { minLength: 1, maxLength: 3 }),
+  })
+
+/** Generate a set of courses across 1-4 terms */
+export const arbCanvasCourseSet: fc.Arbitrary<CanvasCourse[]> = fc
+  .array(arbCanvasTerm, { minLength: 1, maxLength: 4 })
+  .chain(terms =>
+    fc.tuple(
+      ...terms.map(t => fc.array(arbCanvasCourse(t), { minLength: 1, maxLength: 4 }))
+    ).map(arrays => arrays.flat())
+  )
+
+// ── Case record arbitraries ─────────────────────────────────────────────────
+
 export const arbCaseListRecord: fc.Arbitrary<CaseListRecord> = fc.record({
   Id: fc.string({ minLength: 15, maxLength: 18 }),
   CaseNumber: fc.stringMatching(/^[0-9]{5,8}$/),

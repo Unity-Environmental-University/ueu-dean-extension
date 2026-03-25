@@ -2,50 +2,8 @@
 import { describe, it, expect } from "vitest"
 import fc from "fast-check"
 import { loadAccountCourses, type LoadAccountDeps } from "./load-account"
-import type { CanvasCourse, CanvasTerm, CanvasEnrollment } from "./student-courses"
-
-// --- Arbitraries ---
-
-const arbTerm: fc.Arbitrary<CanvasTerm> = fc.record({
-  id: fc.nat(),
-  name: fc.string({ minLength: 1 }),
-  start_at: fc.oneof(
-    fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01"), noInvalidDate: true }).map(d => d.toISOString()),
-    fc.constant(null),
-  ),
-  end_at: fc.oneof(
-    fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01"), noInvalidDate: true }).map(d => d.toISOString()),
-    fc.constant(null),
-  ),
-})
-
-const arbEnrollment: fc.Arbitrary<CanvasEnrollment> = fc.record({
-  type: fc.constant("StudentEnrollment"),
-  enrollment_state: fc.constantFrom("active", "completed"),
-  computed_current_score: fc.oneof(fc.double({ min: 0, max: 100, noNaN: true }), fc.constant(null)),
-  computed_final_score: fc.oneof(fc.double({ min: 0, max: 100, noNaN: true }), fc.constant(null)),
-  computed_current_grade: fc.oneof(fc.constantFrom("A", "B", "C", "D", "F"), fc.constant(null)),
-  computed_final_grade: fc.oneof(fc.constantFrom("A", "B", "C", "D", "F"), fc.constant(null)),
-})
-
-const arbCourse = (term: CanvasTerm): fc.Arbitrary<CanvasCourse> =>
-  fc.record({
-    id: fc.nat(),
-    name: fc.string({ minLength: 1 }),
-    course_code: fc.string({ minLength: 1 }),
-    enrollment_term_id: fc.constant(term.id),
-    term: fc.constant(term),
-    enrollments: fc.array(arbEnrollment, { minLength: 1, maxLength: 2 }),
-  })
-
-/** Generate a set of courses across 1-4 terms */
-const arbCourseSet: fc.Arbitrary<CanvasCourse[]> = fc
-  .array(arbTerm, { minLength: 1, maxLength: 4 })
-  .chain(terms =>
-    fc.tuple(
-      ...terms.map(t => fc.array(arbCourse(t), { minLength: 1, maxLength: 4 }))
-    ).map(arrays => arrays.flat())
-  )
+import type { CanvasCourse } from "./student-courses"
+import { arbCanvasTerm, arbCanvasCourse, arbCanvasCourseSet } from "../test-utils"
 
 // --- Helpers ---
 
@@ -81,7 +39,7 @@ describe("prop: account with canvas ID resolves", () => {
     await fc.assert(
       fc.asyncProperty(
         fc.string({ minLength: 1 }),  // canvasUserId
-        arbCourseSet,
+        arbCanvasCourseSet,
         async (canvasUserId, courses) => {
           const deps = makeDeps({
             account: { Canvas_User_ID__pc: canvasUserId, Name: "Student" },
@@ -131,7 +89,7 @@ describe("prop: courses always grouped by term", () => {
   it("every course appears in exactly one term group", async () => {
     await fc.assert(
       fc.asyncProperty(
-        arbCourseSet,
+        arbCanvasCourseSet,
         async (courses) => {
           const deps = makeDeps({
             account: { Canvas_User_ID__pc: "123", Name: "S" },
@@ -158,7 +116,7 @@ describe("prop: courses always grouped by term", () => {
   it("term groups are sorted most recent first", async () => {
     await fc.assert(
       fc.asyncProperty(
-        arbCourseSet,
+        arbCanvasCourseSet,
         async (courses) => {
           const deps = makeDeps({
             account: { Canvas_User_ID__pc: "123", Name: "S" },
@@ -218,7 +176,7 @@ describe("prop: no mutation on stale", () => {
     await fc.assert(
       fc.asyncProperty(
         fc.nat({ max: 2 }),  // stale after 0, 1, or 2 async calls
-        arbCourseSet,
+        arbCanvasCourseSet,
         async (staleAfter, courses) => {
           const deps = makeDeps({
             account: { Canvas_User_ID__pc: "123", Name: "S" },

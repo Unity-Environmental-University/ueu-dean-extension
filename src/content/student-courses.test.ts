@@ -8,37 +8,9 @@ import {
   termAverage,
   type CanvasCourse,
   type CanvasTerm,
-  type CanvasEnrollment,
   type TermGroup,
 } from "./student-courses"
-
-// --- Arbitraries ---
-
-const arbTerm: fc.Arbitrary<CanvasTerm> = fc.record({
-  id: fc.nat(),
-  name: fc.string({ minLength: 1 }),
-  start_at: fc.oneof(fc.integer({ min: 1577836800000, max: 1893456000000 }).map(ms => new Date(ms).toISOString()), fc.constant(null)),
-  end_at: fc.oneof(fc.integer({ min: 1577836800000, max: 1893456000000 }).map(ms => new Date(ms).toISOString()), fc.constant(null)),
-})
-
-const arbEnrollment: fc.Arbitrary<CanvasEnrollment> = fc.record({
-  type: fc.constantFrom("StudentEnrollment", "TeacherEnrollment", "ObserverEnrollment"),
-  enrollment_state: fc.constantFrom("active", "completed", "inactive"),
-  computed_current_score: fc.oneof(fc.double({ min: 0, max: 100, noNaN: true }), fc.constant(null)),
-  computed_final_score: fc.oneof(fc.double({ min: 0, max: 100, noNaN: true }), fc.constant(null)),
-  computed_current_grade: fc.oneof(fc.constantFrom("A", "B", "C", "D", "F"), fc.constant(null)),
-  computed_final_grade: fc.oneof(fc.constantFrom("A", "B", "C", "D", "F"), fc.constant(null)),
-})
-
-const arbCourse = (term: CanvasTerm): fc.Arbitrary<CanvasCourse> =>
-  fc.record({
-    id: fc.nat(),
-    name: fc.string({ minLength: 1 }),
-    course_code: fc.string({ minLength: 1 }),
-    enrollment_term_id: fc.constant(term.id),
-    term: fc.constant(term),
-    enrollments: fc.array(arbEnrollment, { minLength: 1, maxLength: 3 }),
-  })
+import { arbCanvasTerm, arbCanvasCourse } from "../test-utils"
 
 // --- toCourseView ---
 
@@ -77,7 +49,7 @@ describe("toCourseView", () => {
   it("preserves course identity for any input", () => {
     fc.assert(
       fc.property(
-        arbTerm.chain(t => arbCourse(t)),
+        arbCanvasTerm.chain(t => arbCanvasCourse(t)),
         (course) => {
           const view = toCourseView(course)
           expect(view.courseId).toBe(course.id)
@@ -133,7 +105,7 @@ describe("groupByTerm", () => {
               end_at: fc.constant(null as string | null),
             }),
           }).chain(({ term }) =>
-            arbCourse(term).map(course => course)
+            arbCanvasCourse(term).map(course => course)
           ),
           { minLength: 2, maxLength: 10 },
         ),
@@ -168,7 +140,7 @@ describe("groupByTerm", () => {
     fc.assert(
       fc.property(
         fc.array(
-          arbTerm.chain(t => arbCourse(t)),
+          arbCanvasTerm.chain(t => arbCanvasCourse(t)),
           { minLength: 0, maxLength: 20 },
         ),
         (courses) => {
