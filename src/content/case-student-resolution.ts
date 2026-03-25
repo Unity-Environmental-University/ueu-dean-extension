@@ -20,7 +20,7 @@ export async function resolveFromAccount(
     const account = await deps.getRecord<Record<string, unknown>>("Account", accountId)
     deps.onUpdate({ contactRaw: account })
     const canvasUserId = log.pick(account, "Canvas_User_ID__pc", "Canvas_User_ID__c", "CanvasUserId__c", "Canvas_ID__c", "Canvas_User__c")
-    const genderIdentity = log.pick(account, "Gender_Identity__c", "GenderIdentity__c", "Gender__c", "Pronouns__c", "Preferred_Pronouns__c")
+    const genderIdentity = log.pick(account, "Person_Gender_Identity__c", "Gender_Identity__c", "GenderIdentity__c", "Gender__c", "Pronouns__c", "Preferred_Pronouns__c")
     log.add("account-resolved", `canvasUserId=${canvasUserId ?? "null"} genderIdentity=${genderIdentity ?? "null"}`)
     deps.onUpdate({ diagnostics: log })
     deps.observeFields("Account", log)
