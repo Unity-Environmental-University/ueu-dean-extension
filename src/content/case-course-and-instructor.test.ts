@@ -84,18 +84,19 @@ describe("resolveInstructor", () => {
     expect(instructorPatch?.instructor?.name).toBe("Prof Smith")
   })
 
-  it("SF ID fails as Account, succeeds as Contact", async () => {
+  it("003-prefix ID routes directly to Contact (skips Account)", async () => {
     const sfId = "003ABCDEFGHIJKLM"
-    let callCount = 0
+    const fetchedTypes: string[] = []
     const { deps, patches } = makeTestCaseDeps()
-    deps.getRecord = async <T>(_type: string, _id: string): Promise<T> => {
-      callCount++
-      if (callCount === 1) throw new Error("Not an Account")  // Account fails
-      return { Canvas_User_ID__c: "888", Name: "Contact Prof" } as T  // Contact succeeds
+    deps.getRecord = async <T>(type: string, _id: string): Promise<T> => {
+      fetchedTypes.push(type)
+      return { Canvas_User_ID__c: "888", Name: "Contact Prof" } as T
     }
 
     await resolveInstructor(null, "prof@unity.edu", sfId, "100", deps)
 
+    // Should go straight to Contact, never try Account
+    expect(fetchedTypes).toEqual(["Contact"])
     const instructorPatch = patches.find(p => "instructor" in p && p.instructor?.canvasId === "888")
     expect(instructorPatch).toBeDefined()
   })

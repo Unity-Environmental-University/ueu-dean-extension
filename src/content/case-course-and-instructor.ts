@@ -90,37 +90,31 @@ export async function resolveInstructor(
 
   if (instructorFieldValue && /^[a-zA-Z0-9]{15,18}$/.test(instructorFieldValue)) {
     const log = createDiagLog()
-    try {
-      const account = await deps.getRecord<Record<string, unknown>>("Account", instructorFieldValue)
-      const canvasUserId = log.pick(account, "Canvas_User_ID__pc", "Canvas_User_ID__c")
-      const accountName = log.pick(account, "Name")
-      deps.onUpdate({ diagnostics: log })
-      if (canvasUserId) {
-        instructor.canvasId = canvasUserId
-        if (accountName) instructor.name = accountName
-        log.add("instructor-lookup", `account Canvas_User_ID__pc=${canvasUserId} name=${accountName ?? "null"}`)
-        deps.onUpdate({ instructor: { ...instructor } })
-        return
-      }
-      if (accountName && !name) instructor.name = accountName
-      log.add("instructor-lookup", `account found but no Canvas user ID`)
-    } catch (e) {
-      log.add("instructor-lookup", `account fetch failed: ${e}`)
+    // SF ID prefixes: 001 = Account, 003 = Contact. Route directly when possible.
+    const isContact = instructorFieldValue.startsWith("003")
+    const isAccount = instructorFieldValue.startsWith("001")
+    const tryOrder: Array<"Account" | "Contact"> = isContact ? ["Contact"] : isAccount ? ["Account"] : ["Account", "Contact"]
+
+    for (const objectType of tryOrder) {
       try {
-        const contact = await deps.getRecord<Record<string, unknown>>("Contact", instructorFieldValue)
-        const canvasUserId = log.pick(contact, "Canvas_User_ID__c")
-        const contactName = log.pick(contact, "Name")
+        const record = await deps.getRecord<Record<string, unknown>>(objectType, instructorFieldValue)
+        const canvasUserId = objectType === "Account"
+          ? log.pick(record, "Canvas_User_ID__pc", "Canvas_User_ID__c")
+          : log.pick(record, "Canvas_User_ID__c")
+        const recordName = log.pick(record, "Name")
         deps.onUpdate({ diagnostics: log })
         if (canvasUserId) {
           instructor.canvasId = canvasUserId
-          if (contactName) instructor.name = contactName
-          log.add("instructor-lookup", `contact Canvas_User_ID__c=${canvasUserId}`)
+          if (recordName) instructor.name = recordName
+          log.add("instructor-lookup", `${objectType.toLowerCase()} Canvas_User_ID=${canvasUserId} name=${recordName ?? "null"}`)
           deps.onUpdate({ instructor: { ...instructor } })
           return
         }
-        if (contactName && !name) instructor.name = contactName
-      } catch {
-        log.add("instructor-lookup", `contact fetch also failed`)
+        if (recordName && !name) instructor.name = recordName
+        log.add("instructor-lookup", `${objectType.toLowerCase()} found but no Canvas user ID`)
+        break // found the record, just no Canvas ID — don't try next type
+      } catch (e) {
+        log.add("instructor-lookup", `${objectType.toLowerCase()} fetch failed: ${e}`)
       }
     }
   }
