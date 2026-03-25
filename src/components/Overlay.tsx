@@ -29,6 +29,7 @@ export function Overlay() {
 
   const get = useStore()
   const diagnostics = get("diagnostics")
+  const page = get("page")
 
   const hasConsent = () => perms()?.sfApi ?? false
 
@@ -226,8 +227,8 @@ export function Overlay() {
               </section>
             }>
               <section>
-                <Show when={state.page?.objectType === "Account"} fallback={
-                  <Show when={state.page?.objectType === "CourseOffering"} fallback={
+                <Show when={page()?.objectType === "Account"} fallback={
+                  <Show when={page()?.objectType === "CourseOffering"} fallback={
                     <CaseView onDrawerToggle={setDrawerOpen} />
                   }>
                     <CourseOfferingView />
