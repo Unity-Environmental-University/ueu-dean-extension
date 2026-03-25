@@ -271,6 +271,10 @@ async function doNavigate() {
     await loadTerm(parsed.recordId, token)
   } else if (parsed.objectType === "Account") {
     await loadAccount(parsed.recordId, token)
+  } else {
+    // Unhandled page type — clear loading so UI doesn't get stuck
+    state.loading = false
+    state.notify()
   }
 }
 
