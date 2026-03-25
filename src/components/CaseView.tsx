@@ -6,11 +6,11 @@
  * All data comes from SF REST API — no DOM scraping.
  */
 
-import { createSignal, Show, createEffect, For, createMemo } from "solid-js"
+import { createSignal, Show, For, createMemo } from "solid-js"
 import browser from "webextension-polyfill"
 import { loadConversations } from "../content/core"
 import { CANVAS_URL } from "../constants"
-import { getSettings, saveSettings } from "../content/permissions"
+import { getSettings } from "../content/permissions"
 import { useStore, useCanvasPermissions, useSessionPoll } from "./useStore"
 
 const INCIDENT_LABELS: Record<string, string> = {
@@ -63,23 +63,6 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
   // Drawer state
   const [drawerOpen, setDrawerOpen] = createSignal(false)
   const [subTypeFilter, setSubTypeFilter] = createSignal("")
-  // undefined = settings not yet loaded; null = no saved preference; "" = explicitly chose All; string = saved filter
-  const [stickyLoaded, setStickyLoaded] = createSignal<string | null | undefined>(undefined)
-
-  getSettings().then(s => {
-    const saved = s.historySubTypeFilter
-    setStickyLoaded(saved ?? null)
-    if (saved) setSubTypeFilter(saved)
-  })
-
-  // Auto-select current case's subtype — only when no user preference exists
-  createEffect(() => {
-    const sticky = stickyLoaded()
-    if (sticky === undefined) return     // settings not yet loaded — wait
-    if (sticky !== null) return          // user has a saved preference (even "All") — honour it
-    const sub = caseData()?.subType
-    if (sub && !subTypeFilter()) setSubTypeFilter(sub)
-  })
 
   function toggleDrawer() {
     const next = !drawerOpen()
@@ -89,7 +72,6 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
 
   function setFilter(value: string) {
     setSubTypeFilter(value)
-    saveSettings({ historySubTypeFilter: value })
   }
 
   // Unique subtypes from prior cases for filter chips
