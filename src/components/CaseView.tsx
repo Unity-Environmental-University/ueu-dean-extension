@@ -8,7 +8,6 @@
 
 import { createSignal, Show } from "solid-js"
 import browser from "webextension-polyfill"
-import { CANVAS_URL } from "../constants"
 import { getSettings } from "../content/permissions"
 import { state } from "../content/core"
 import { useStore, useCanvasPermissions, useSessionPoll } from "./useStore"
