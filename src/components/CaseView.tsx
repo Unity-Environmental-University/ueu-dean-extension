@@ -230,14 +230,18 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
                           <span class="ueu-history-date">
                             {new Date(c.createdDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                           </span>
-                          <span class="ueu-pill" data-status={c.status.toLowerCase()}>{c.status}</span>
+                          <Show when={c.status !== "Unknown"}>
+                            <span class="ueu-pill" data-status={c.status.toLowerCase()}>{c.status}</span>
+                          </Show>
                         </span>
                       </div>
-                      <div class="ueu-history-card-detail">
-                        <span class="ueu-history-type" title={`${c.type}${c.subType ? ` · ${c.subType}` : ""}`}>
-                          {acronym(c.type)}{c.subType ? ` · ${acronym(c.subType)}` : ""}
-                        </span>
-                      </div>
+                      <Show when={c.type !== "Unknown" || c.subType}>
+                        <div class="ueu-history-card-detail">
+                          <span class="ueu-history-type" title={`${c.type}${c.subType ? ` · ${c.subType}` : ""}`}>
+                            {c.type !== "Unknown" ? acronym(c.type) : ""}{c.subType ? `${c.type !== "Unknown" ? " · " : ""}${acronym(c.subType)}` : ""}
+                          </span>
+                        </div>
+                      </Show>
                       <Show when={c.courseCode || c.courseName || c.termName}>
                         <div class="ueu-history-card-course">
                           <Show when={c.courseCode || c.courseName}>
