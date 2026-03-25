@@ -81,10 +81,17 @@ export async function sfQuery<T = Record<string, unknown>>(
 }
 
 /** Parse a Lightning URL into object type + record ID */
+/** Map SF API object names to simplified internal names used by routing */
+const OBJECT_TYPE_MAP: Record<string, string> = {
+  "hed__Course_Offering__c": "CourseOffering",
+  "hed__Term__c": "Term",
+}
+
 export function parseRecordUrl(
   pathname: string,
 ): { objectType: string; recordId: string } | null {
   const match = pathname.match(/\/lightning\/r\/([^/]+)\/([a-zA-Z0-9]+)\/view/)
   if (!match) return null
-  return { objectType: match[1], recordId: match[2] }
+  const rawType = match[1]
+  return { objectType: OBJECT_TYPE_MAP[rawType] ?? rawType, recordId: match[2] }
 }
