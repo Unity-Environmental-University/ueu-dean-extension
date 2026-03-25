@@ -307,6 +307,16 @@ export function startWatching() {
   }
 
   window.addEventListener("popstate", () => onNavigate())
+
+  // SF Lightning sometimes navigates without triggering pushState/popstate.
+  // Poll the URL to catch these silent navigations.
+  let lastPath = window.location.pathname
+  setInterval(() => {
+    if (window.location.pathname !== lastPath) {
+      lastPath = window.location.pathname
+      onNavigate()
+    }
+  }, 500)
 }
 
 /**
