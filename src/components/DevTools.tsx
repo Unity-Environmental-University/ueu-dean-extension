@@ -32,16 +32,36 @@ export function DevTools(props: {
       </button>
       <small>Copies extension state — paste to Claude to debug field mapping</small>
 
+      <button onClick={async () => {
+        const sections: string[] = []
+        if (state.caseRaw) sections.push(`## Case fields (${Object.keys(state.caseRaw).length})\n${Object.keys(state.caseRaw).sort().join("\n")}`)
+        if (state.copRaw) sections.push(`## COP fields (${Object.keys(state.copRaw).length})\n${Object.keys(state.copRaw).sort().join("\n")}`)
+        if (state.contactRaw) sections.push(`## Contact/Account fields (${Object.keys(state.contactRaw).length})\n${Object.keys(state.contactRaw).sort().join("\n")}`)
+        if (sections.length === 0) sections.push("No raw records available — navigate to a Case page first")
+        await navigator.clipboard.writeText(sections.join("\n\n"))
+        props.setCopied(true)
+        setTimeout(() => props.setCopied(false), 2000)
+      }} class={props.copied() ? "ueu-btn-copied" : ""}>
+        {props.copied() ? "Copied!" : "Copy field names"}
+      </button>
+      <small>FERPA-safe — copies API field names only, no values</small>
+
+      <Show when={state.caseRaw}>
+        <details class="ueu-dev-raw">
+          <summary>Case fields ({Object.keys(state.caseRaw!).length})</summary>
+          <pre class="ueu-dev-raw-pre">{Object.keys(state.caseRaw!).sort().join("\n")}</pre>
+        </details>
+      </Show>
       <Show when={state.copRaw}>
         <details class="ueu-dev-raw">
-          <summary>COP raw fields</summary>
-          <pre class="ueu-dev-raw-pre">{JSON.stringify(state.copRaw, null, 2)}</pre>
+          <summary>COP fields ({Object.keys(state.copRaw!).length})</summary>
+          <pre class="ueu-dev-raw-pre">{Object.keys(state.copRaw!).sort().join("\n")}</pre>
         </details>
       </Show>
       <Show when={state.contactRaw}>
         <details class="ueu-dev-raw">
-          <summary>Contact raw fields</summary>
-          <pre class="ueu-dev-raw-pre">{JSON.stringify(state.contactRaw, null, 2)}</pre>
+          <summary>Contact/Account fields ({Object.keys(state.contactRaw!).length})</summary>
+          <pre class="ueu-dev-raw-pre">{Object.keys(state.contactRaw!).sort().join("\n")}</pre>
         </details>
       </Show>
       <Show when={props.diagnostics().length > 0}>

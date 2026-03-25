@@ -37,6 +37,7 @@ export interface CasePatch {
   instructor?: InstructorState | null
   priorCases?: PriorCase[] | null
   copRaw?: Record<string, unknown> | null
+  caseRaw?: Record<string, unknown> | null
   contactRaw?: Record<string, unknown> | null
   canMasquerade?: boolean | null
   diagnostics?: DiagEntry[]

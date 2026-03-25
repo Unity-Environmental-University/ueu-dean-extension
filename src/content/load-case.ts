@@ -76,6 +76,7 @@ export async function loadPriorCases(
 export async function loadCase(recordId: string, deps: LoadCaseDeps): Promise<void> {
   try {
     const rec = await deps.getRecord<Record<string, unknown>>("Case", recordId)
+    deps.onUpdate({ caseRaw: rec })
     if (deps.isStale()) return
 
     const fieldMap = await deps.describeObject("Case").catch(() => null)

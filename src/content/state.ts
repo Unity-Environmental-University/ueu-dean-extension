@@ -82,6 +82,9 @@ export const state = {
   /** Raw COP record for debugging */
   copRaw: null as Record<string, unknown> | null,
 
+  /** Raw Case record for debugging (keys only — no values displayed) */
+  caseRaw: null as Record<string, unknown> | null,
+
   /** Diagnostic log — field misses and resolution path for this page load */
   diagnostics: [] as DiagEntry[],
 
@@ -100,6 +103,7 @@ export function clearCaseState() {
   state.instructor = null
   state.canvas = null
   state.copRaw = null
+  state.caseRaw = null
   state.contactRaw = null
   state.priorCases = null
   state.loadingPriorCases = false
@@ -144,6 +148,7 @@ export function applyPatch(patch: CasePatch): void {
   if ("instructor" in patch) state.instructor = patch.instructor!
   if ("priorCases" in patch) state.priorCases = patch.priorCases!
   if ("copRaw" in patch) state.copRaw = patch.copRaw!
+  if ("caseRaw" in patch) state.caseRaw = patch.caseRaw!
   if ("contactRaw" in patch) state.contactRaw = patch.contactRaw!
   if ("canMasquerade" in patch) state.canMasquerade = patch.canMasquerade!
   if ("canMasqueradeCache" in patch) state.canMasqueradeCache = patch.canMasqueradeCache!

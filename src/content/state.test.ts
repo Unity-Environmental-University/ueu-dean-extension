@@ -10,6 +10,7 @@ beforeEach(() => {
   state.instructor = null
   state.canvas = null
   state.copRaw = null
+  state.caseRaw = null
   state.contactRaw = null
   state.priorCases = null
   state.loadingPriorCases = false
