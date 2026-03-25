@@ -6,7 +6,6 @@ import { loadCourseOffering, type LoadCourseOfferingDeps } from "./load-course-o
 function makeDeps(overrides: Partial<{
   co: Record<string, unknown>
   sfStudents: unknown[]
-  sfStudentsFallback: unknown[]
   canvasEnrollments: unknown[]
   getRecordError: Error
   sfQueryError: Error
@@ -15,7 +14,6 @@ function makeDeps(overrides: Partial<{
 }>): LoadCourseOfferingDeps {
   let callCount = 0
   const staleAfter = overrides.staleAfter ?? Infinity
-  let queryAttempt = 0
 
   return {
     getRecord: async <T>(_type: string, _id: string): Promise<T> => {
@@ -25,13 +23,8 @@ function makeDeps(overrides: Partial<{
     },
     sfQuery: async <T>(_soql: string) => {
       callCount++
-      queryAttempt++
-      if (queryAttempt === 1 && overrides.sfQueryError) throw overrides.sfQueryError
-      if (queryAttempt === 1) {
-        return { records: (overrides.sfStudents ?? []) as T[], totalSize: 0, done: true }
-      }
-      // Fallback query
-      return { records: (overrides.sfStudentsFallback ?? []) as T[], totalSize: 0, done: true }
+      if (overrides.sfQueryError) throw overrides.sfQueryError
+      return { records: (overrides.sfStudents ?? []) as T[], totalSize: 0, done: true }
     },
     canvasFetch: async <T>(_path: string): Promise<T> => {
       callCount++
@@ -80,20 +73,24 @@ describe("loadCourseOffering", () => {
     expect(result.students[0].currentScore).toBeNull()
   })
 
-  it("SOQL fallback: first query fails, second succeeds", async () => {
+  it("SOQL error surfaces in diagnostics, Canvas roster still works", async () => {
     const deps = makeDeps({
-      co: { Name: "Fallback Course", Canvas_Course_ID__c: "600" },
+      co: { Name: "Error Course", Canvas_Course_ID__c: "600" },
       sfQueryError: new Error("hed__Course_Enrollment__c not found"),
-      sfStudentsFallback: [
-        { Id: "COP2", ParticipantContactId: "003B", Contact__r: { Name: "Charlie" } },
+      canvasEnrollments: [
+        { user_id: 55, user: { name: "Canvas Student" }, grades: { current_score: 88, current_grade: "B+" }, last_activity_at: null, enrollment_state: "active" },
       ],
-      canvasEnrollments: [],
     })
 
     const result = await loadCourseOffering("CO003", deps)
 
+    // SOQL error should be in diagnostics
+    const errorDiag = result.diagnostics.find(d => d.type === "co-enrollment-error")
+    expect(errorDiag).toBeDefined()
+    // Canvas students should still load
     expect(result.students).toHaveLength(1)
-    expect(result.students[0].name).toBe("Charlie")
+    expect(result.students[0].name).toBe("Canvas Student")
+    expect(result.students[0].currentScore).toBe(88)
   })
 
   it("Canvas 401 → canvas-session-required error", async () => {
