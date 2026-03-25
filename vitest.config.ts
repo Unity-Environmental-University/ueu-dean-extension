@@ -8,6 +8,7 @@ export default defineConfig({
     // Component tests opt into jsdom via @vitest-environment jsdom comment.
     environment: "node",
     globals: true,
+    exclude: ["e2e/**", "node_modules/**"],
     environmentMatchGlobs: [
       ["src/components/**", "jsdom"],
     ],

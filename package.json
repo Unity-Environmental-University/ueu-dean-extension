@@ -15,6 +15,7 @@
     "sandbox": "vite --config sandbox/vite.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "npm run build:chrome && vitest run --config e2e/vitest.config.ts",
     "release": "npm run build:chrome && bash scripts/release.sh"
   },
   "dependencies": {
