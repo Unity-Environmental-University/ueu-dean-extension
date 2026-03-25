@@ -32,9 +32,9 @@ export function buildCaseListQuery(opts: CaseQueryOpts): string {
 export interface CaseListRecord {
   Id: string
   CaseNumber: string
-  Type: string
+  Type: string | null
   SubType__c: string | null
-  Status: string
+  Status: string | null
   CreatedDate: string
   Course_Offering__c: string | null
   Course_Offering__r?: { Name?: string; Academic_Term_Display_Name__c?: string }
@@ -45,9 +45,9 @@ export function mapCaseRecord(r: CaseListRecord): PriorCase {
   return {
     id: r.Id,
     caseNumber: r.CaseNumber,
-    type: r.Type,
+    type: r.Type ?? "Unknown",
     subType: r.SubType__c,
-    status: r.Status,
+    status: r.Status ?? "Unknown",
     createdDate: r.CreatedDate,
     courseName: r.Course_Offering__r?.Name ?? null,
     courseCode: extractCourseCode(r.Course_Offering__r?.Name ?? null),
