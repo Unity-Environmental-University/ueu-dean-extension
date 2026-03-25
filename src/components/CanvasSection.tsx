@@ -4,7 +4,7 @@
 
 import { Show, For } from "solid-js"
 import { loadConversations } from "../content/core"
-import { CANVAS_URL } from "../constants"
+import { CanvasUserLinks } from "./CanvasUserLinks"
 import type { useStore } from "./useStore"
 
 export function CanvasSection(props: {
@@ -74,19 +74,13 @@ export function CanvasSection(props: {
                 </Show>
               </p>
               <Show when={c().studentId}>
-                <div class="ueu-canvas-links">
-                  <a href={`${c().url}/grades/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                    Grades &rarr;
-                  </a>
-                  <a href={`${CANVAS_URL}/users/${c().studentId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                    Profile &rarr;
-                  </a>
-                  <Show when={props.showCanvasFeatures()}>
-                    <a href={`${CANVAS_URL}/users/${c().studentId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${props.canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={props.canvasFeaturesPending()}>
-                      Act as &rarr;
-                    </a>
-                  </Show>
-                </div>
+                <CanvasUserLinks
+                  userId={c().studentId!}
+                  courseId={c().courseId}
+                  showGrades
+                  showActAs={props.showCanvasFeatures()}
+                  pending={props.canvasFeaturesPending()}
+                />
               </Show>
             </Show>
           </article>

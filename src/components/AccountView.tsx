@@ -9,6 +9,7 @@ import { loadConversations } from "../content/core"
 import { CANVAS_URL } from "../constants"
 import { isCurrentTerm, termAverage } from "../content/student-courses"
 import { scoreColor, formatScore, formatLda } from "./format"
+import { CanvasUserLinks } from "./CanvasUserLinks"
 import { useStore, useCanvasPermissions, useSessionPoll } from "./useStore"
 
 export function AccountView() {
@@ -164,15 +165,12 @@ export function AccountView() {
 
             {/* Canvas links when we have a user ID */}
             <Show when={data().canvasUserId}>
-              <div class="ueu-canvas-links" style={{"margin-bottom": "0.5rem"}}>
-                <a href={`${CANVAS_URL}/users/${data().canvasUserId}`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
-                  Profile &rarr;
-                </a>
-                <Show when={showCanvasFeatures()}>
-                  <a href={`${CANVAS_URL}/users/${data().canvasUserId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${canvasFeaturesPending() ? " ueu-canvas-pending" : ""}`} aria-disabled={canvasFeaturesPending()}>
-                    Act as &rarr;
-                  </a>
-                </Show>
+              <div style={{"margin-bottom": "0.5rem"}}>
+                <CanvasUserLinks
+                  userId={data().canvasUserId!}
+                  showActAs={showCanvasFeatures()}
+                  pending={canvasFeaturesPending()}
+                />
               </div>
 
               {/* Inbox — only available with masquerade permission */}
