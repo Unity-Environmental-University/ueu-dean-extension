@@ -250,7 +250,7 @@ async function doNavigate() {
     return
   }
 
-  if (state.page?.recordId === parsed.recordId && (state.loading || state.caseData || state.canvas || state.accountData)) return
+  if (state.page?.recordId === parsed.recordId && (state.caseData || state.canvas || state.accountData || state.offeringData)) return
 
   state.page = parsed
   state.loading = true
