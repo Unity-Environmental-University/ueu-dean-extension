@@ -16,6 +16,7 @@ export function AccountView() {
 
   const [selectedTerm, setSelectedTerm] = createSignal<number | null>(null)
   const [expandedCourse, setExpandedCourse] = createSignal<number | null>(null)
+  const [casesExpanded, setCasesExpanded] = createSignal(false)
 
   const accountData = get("accountData")
   const loading = get("loading")
@@ -73,22 +74,64 @@ export function AccountView() {
             {/* Case awareness — open cases signal for advisors */}
             <Show when={accountCases()}>
               {cases => (
-                <Show when={cases().openCount > 0}>
+                <Show when={cases().cases.length > 0}>
                   <div class="ueu-case-signal">
-                    <span class="ueu-case-signal-count">{cases().openCount}</span>
-                    <span class="ueu-case-signal-label">
-                      open {cases().openCount === 1 ? "case" : "cases"}
-                    </span>
-                    <Show when={cases().cases.length > 0}>
-                      <span class="ueu-case-signal-types">
-                        {[...new Set(cases().cases
-                          .filter(c => c.status !== "Closed" && c.status !== "Resolved")
-                          .map(c => c.type)
-                          .filter(Boolean)
-                        )].join(", ")}
-                      </span>
-                    </Show>
+                    <button class="ueu-case-signal-toggle" onClick={() => setCasesExpanded(!casesExpanded())}>
+                      <Show when={cases().openCount > 0}>
+                        <span class="ueu-case-signal-count">{cases().openCount}</span>
+                        <span class="ueu-case-signal-label">
+                          open {cases().openCount === 1 ? "case" : "cases"}
+                        </span>
+                      </Show>
+                      <Show when={cases().openCount === 0}>
+                        <span class="ueu-case-signal-label">{cases().cases.length} prior {cases().cases.length === 1 ? "case" : "cases"}</span>
+                      </Show>
+                      <span class="ueu-drawer-arrow" classList={{"ueu-drawer-arrow-open": casesExpanded()}}>&rsaquo;</span>
+                    </button>
                   </div>
+                  <Show when={casesExpanded()}>
+                    <ul class="ueu-history-list">
+                      <For each={cases().cases}>
+                        {c => (
+                          <li class="ueu-history-card">
+                            <div class="ueu-history-card-top">
+                              <a href={`/lightning/r/Case/${c.id}/view`} target="_blank" rel="noopener noreferrer" class="ueu-case-link">
+                                {c.caseNumber}
+                              </a>
+                              <span class="ueu-history-right">
+                                <span class="ueu-history-date">
+                                  {new Date(c.createdDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                                </span>
+                                <Show when={c.status !== "Unknown"}>
+                                  <span class="ueu-pill" data-status={c.status.toLowerCase()}>{c.status}</span>
+                                </Show>
+                              </span>
+                            </div>
+                            <Show when={c.type !== "Unknown" || c.subType}>
+                              <div class="ueu-history-card-detail">
+                                <span class="ueu-history-type">
+                                  {c.type !== "Unknown" ? c.type : ""}{c.subType ? `${c.type !== "Unknown" ? " · " : ""}${c.subType}` : ""}
+                                </span>
+                              </div>
+                            </Show>
+                            <Show when={c.courseCode || c.courseName}>
+                              <div class="ueu-history-card-course">
+                                {(() => {
+                                  const label = c.courseCode ?? c.courseName!
+                                  return c.courseOfferingId
+                                    ? <a href={`/lightning/r/hed__Course_Offering__c/${c.courseOfferingId}/view`} target="_blank" rel="noopener noreferrer" class="ueu-history-course ueu-history-course-link">{label}</a>
+                                    : <span class="ueu-history-course">{label}</span>
+                                })()}
+                                <Show when={c.termName}>
+                                  <span class="ueu-history-term-tag">{c.termName}</span>
+                                </Show>
+                              </div>
+                            </Show>
+                          </li>
+                        )}
+                      </For>
+                    </ul>
+                  </Show>
                 </Show>
               )}
             </Show>

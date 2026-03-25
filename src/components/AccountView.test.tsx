@@ -103,27 +103,24 @@ describe("AccountView", () => {
     })
   })
 
-  // Property: case type list shows unique types of open cases only
-  describe("prop: case types show only open case types", () => {
-    it("renders unique types from non-closed/resolved cases", async () => {
+  // Property: expanding case signal shows case numbers
+  describe("prop: case list expands to show case details", () => {
+    it("renders case numbers after clicking expand", async () => {
       await fc.assert(
         fc.asyncProperty(arbAccountData, arbCasesResult, async (account, cases) => {
-          // Only test when there are open cases (otherwise no type display)
-          fc.pre(cases.openCount > 0)
+          fc.pre(cases.cases.length > 0)
 
           setState({ accountData: account as any, accountCases: cases })
           const { unmount } = await renderAccountView()
 
-          const openTypes = [...new Set(
-            cases.cases
-              .filter(c => c.status !== "Closed" && c.status !== "Resolved")
-              .map(c => c.type)
-              .filter(Boolean)
-          )]
-
-          if (openTypes.length > 0) {
-            const expected = openTypes.join(", ")
-            expect(screen.getByText(expected)).toBeTruthy()
+          // Click the toggle to expand
+          const toggle = document.querySelector(".ueu-case-signal-toggle")
+          if (toggle) {
+            (toggle as HTMLElement).click()
+            // Case numbers should now be visible
+            for (const c of cases.cases) {
+              expect(screen.getByText(c.caseNumber)).toBeTruthy()
+            }
           }
 
           unmount()

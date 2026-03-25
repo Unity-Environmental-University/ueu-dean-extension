@@ -912,6 +912,19 @@
   margin-left: auto;
 }
 
+.ueu-case-signal-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
 .ueu-lda-value {
   color: #15803d;
   font-weight: 700;
