@@ -17,7 +17,7 @@ import { loadAccountCases as loadAccountCasesImpl } from "./load-account-cases"
 import { probeCanvasMasquerade, loadCanvasConversations } from "./load-canvas-messages"
 import { CANVAS_HOST } from "../constants"
 import {
-  state, clearCaseState, clearConversationState,
+  state, clearCaseState, clearConversationState, clearAllPageState,
   stale, bumpNavToken, currentNavToken, applyPatch,
 } from "./state"
 
@@ -240,12 +240,7 @@ async function doNavigate() {
   if (!parsed) {
     if (state.page) {
       state.page = null
-      clearCaseState()
-      state.accountData = null
-      state.accountCases = null
-      clearConversationState()
-      state.loading = false
-      state.error = null
+      clearAllPageState()
       state.notify()
     }
     return
@@ -253,6 +248,7 @@ async function doNavigate() {
 
   if (state.page?.recordId === parsed.recordId && (state.caseData || state.canvas || state.accountData || state.offeringData)) return
 
+  clearAllPageState()
   state.page = parsed
   state.loading = true
   state.notify()

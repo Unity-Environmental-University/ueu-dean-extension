@@ -124,6 +124,24 @@ export function clearConversationState() {
   state.conversationError = null
 }
 
+/** Nuclear reset — clear ALL page-specific state. Called on every navigation to a new record. */
+export function clearAllPageState() {
+  // Case state
+  clearCaseState()
+  // Conversation state
+  clearConversationState()
+  // Account state
+  state.accountData = null
+  state.accountCases = null
+  // CourseOffering state
+  state.offeringData = null
+  state.coRaw = null
+  // Shared
+  state.loading = false
+  state.error = null
+  state.diagnostics = []
+}
+
 /**
  * Navigation token — incremented on every navigation event.
  * Async operations capture the token at start and bail if it changes,
