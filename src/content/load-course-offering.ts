@@ -91,7 +91,9 @@ export async function loadCourseOffering(
   const termName = cleanTermName(
     diagnostics.pick(co, "Academic_Term_Display_Name__c", "hed__Term__r.Name", "Term_Name__c")
   )
-  const instructorName = diagnostics.pick(co, "Instructor_Name__c", "Instructor__c")
+  const instructorName = diagnostics.pick(co, "Instructor_Name__c", "Instructor__c", "User_Primary_Faculty__c")
+  const instructorEmail = diagnostics.pick(co, "Faculty_Email__c")
+  const supervisingDean = diagnostics.pick(co, "Supervising_Dean__c")
 
   const canvasCourseUrl = canvasCourseId
     ? `${CANVAS_URL}/courses/${canvasCourseId}`
@@ -102,18 +104,17 @@ export async function loadCourseOffering(
   // 2. SOQL: enrolled students via CourseOfferingParticipant
   let sfStudents: Array<{
     Id: string
-    hed__Contact__c: string | null
+    ParticipantContactId: string | null
     Canvas_Enrollment_ID__c: string | null
-    hed__Contact__r?: { Name?: string; Email?: string; Canvas_User_ID__c?: string }
+    Contact?: { Name?: string; Email?: string }
   }> = []
 
-  const soql = `SELECT Id, hed__Contact__c, Canvas_Enrollment_ID__c,
-    hed__Contact__r.Name, hed__Contact__r.Email, hed__Contact__r.Canvas_User_ID__c
-    FROM hed__Course_Enrollment__c
-    WHERE hed__Course_Offering__c = '${recordId}'
-    AND hed__Status__c = 'Active'
-    ORDER BY hed__Contact__r.Name
-    LIMIT 100`
+  const soql = `SELECT Id, ParticipantContactId, Canvas_Enrollment_ID__c,
+    Contact.Name, Contact.Email
+    FROM CourseOfferingParticipant
+    WHERE CourseOfferingId = '${recordId}'
+    ORDER BY Contact.Name
+    LIMIT 200`
   try {
     const result = await deps.sfQuery<typeof sfStudents[0]>(soql)
     if (deps.isStale()) return empty
@@ -145,11 +146,11 @@ export async function loadCourseOffering(
   if (deps.isStale()) return empty
 
   // 4. Build student list — Canvas roster is primary, SF enriches
-  // Index SF students by Canvas user ID for enrichment
-  const sfByCanvasId = new Map<string, typeof sfStudents[0]>()
+  // Index SF students by name for enrichment (no Canvas user ID on COP)
+  const sfByName = new Map<string, typeof sfStudents[0]>()
   for (const r of sfStudents) {
-    const cid = r.hed__Contact__r?.Canvas_User_ID__c
-    if (cid) sfByCanvasId.set(cid, r)
+    const name = r.Contact?.Name
+    if (name) sfByName.set(name.toLowerCase(), r)
   }
 
   let students: EnrolledStudent[]
@@ -157,12 +158,12 @@ export async function loadCourseOffering(
   if (canvasRoster.size > 0) {
     // Canvas is primary — has grades, activity, enrollment state
     students = [...canvasRoster.values()].map(ce => {
-      const sfMatch = sfByCanvasId.get(String(ce.user_id))
+      const sfMatch = ce.user?.name ? sfByName.get(ce.user.name.toLowerCase()) : undefined
       return {
-        contactId: sfMatch?.hed__Contact__c ?? null,
+        contactId: sfMatch?.ParticipantContactId ?? null,
         accountId: null,
         name: ce.user?.name ?? "Unknown",
-        email: ce.user?.login_id ?? sfMatch?.hed__Contact__r?.Email ?? null,
+        email: ce.user?.login_id ?? sfMatch?.Contact?.Email ?? null,
         canvasUserId: String(ce.user_id),
         currentScore: ce.grades?.current_score ?? null,
         currentGrade: ce.grades?.current_grade ?? null,
@@ -174,11 +175,11 @@ export async function loadCourseOffering(
   } else if (sfStudents.length > 0) {
     // SF fallback — no grades but has names
     students = sfStudents.map(r => ({
-      contactId: r.hed__Contact__c ?? null,
+      contactId: r.ParticipantContactId ?? null,
       accountId: null,
-      name: r.hed__Contact__r?.Name ?? "Unknown",
-      email: r.hed__Contact__r?.Email ?? null,
-      canvasUserId: r.hed__Contact__r?.Canvas_User_ID__c ?? null,
+      name: r.Contact?.Name ?? "Unknown",
+      email: r.Contact?.Email ?? null,
+      canvasUserId: null,
       currentScore: null,
       currentGrade: null,
       lastActivityAt: null,

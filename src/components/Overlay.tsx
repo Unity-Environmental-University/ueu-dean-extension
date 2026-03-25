@@ -102,6 +102,20 @@ export function Overlay() {
       s.diagnostics.forEach(d => lines.push(`  ${d.type}: ${d.detail}`))
     }
 
+    // Field names (FERPA-safe — keys only, no values)
+    const rawSources: Array<[string, Record<string, unknown> | null]> = [
+      ["Case", s.caseRaw],
+      ["CourseOffering", s.coRaw],
+      ["COP", s.copRaw],
+      ["Contact/Account", s.contactRaw],
+    ]
+    for (const [label, raw] of rawSources) {
+      if (!raw) continue
+      const keys = Object.keys(raw).sort()
+      lines.push(`\n[${label} fields (${keys.length})]`)
+      lines.push(keys.join(", "))
+    }
+
     return lines.join("\n")
   }
 
