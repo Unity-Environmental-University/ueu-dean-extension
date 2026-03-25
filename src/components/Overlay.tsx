@@ -340,6 +340,51 @@ export function Overlay() {
                 </details>
               </Show>
 
+              <Show when={diagnostics().length > 0}>
+                {(() => {
+                  const diags = diagnostics()
+                  const misses = diags.filter(d => d.type === "pick-miss" || d.type === "field-miss" || d.type === "field-unknown")
+                  const hits = diags.filter(d => d.type === "pick-hit" || d.type === "field-hit")
+                  const errors = diags.filter(d => d.type.endsWith("-error"))
+                  const hasMismatches = misses.length > 0 || errors.length > 0
+                  return (
+                    <details class="ueu-dev-raw" open={hasMismatches}>
+                      <summary style={{"color": hasMismatches ? "#f59e0b" : "#16a34a"}}>
+                        Field Agreement ({hits.length} hit{hits.length !== 1 ? "s" : ""}, {misses.length} miss{misses.length !== 1 ? "es" : ""}, {errors.length} error{errors.length !== 1 ? "s" : ""})
+                      </summary>
+                      <div class="ueu-dev-raw-pre" style={{"font-size": "0.7rem", "line-height": "1.5"}}>
+                        <Show when={misses.length > 0}>
+                          <div style={{"color": "#f59e0b", "margin-bottom": "0.4rem"}}>
+                            <strong>Mismatches</strong>
+                            {misses.map(d => (
+                              <div style={{"padding-left": "0.5rem"}}>
+                                {d.type === "field-unknown" ? "⚠ unknown label" : d.type === "field-miss" ? "⚠ empty field" : "⚠ pick miss"}: {safeDetail(d.detail)}
+                              </div>
+                            ))}
+                          </div>
+                        </Show>
+                        <Show when={errors.length > 0}>
+                          <div style={{"color": "#dc2626", "margin-bottom": "0.4rem"}}>
+                            <strong>Errors</strong>
+                            {errors.map(d => (
+                              <div style={{"padding-left": "0.5rem"}}>✗ {d.type}: {safeDetail(d.detail)}</div>
+                            ))}
+                          </div>
+                        </Show>
+                        <Show when={hits.length > 0}>
+                          <div style={{"color": "#16a34a"}}>
+                            <strong>Resolved ({hits.length})</strong>
+                            {hits.map(d => (
+                              <div style={{"padding-left": "0.5rem"}}>✓ {d.field ?? "?"}: {safeDetail(d.detail)}</div>
+                            ))}
+                          </div>
+                        </Show>
+                      </div>
+                    </details>
+                  )
+                })()}
+              </Show>
+
               <div class="ueu-dev-support">
                 <label class="ueu-dev-label">Support Canvas ID</label>
                 <input
