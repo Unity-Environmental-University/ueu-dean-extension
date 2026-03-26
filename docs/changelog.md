@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-03-26 (v0.4.1)
+
+### What's new
+
+- **Search for people, not just courses.** The popup search (click the extension icon) now finds students and instructors by name or email. Type a name and it searches students. Click "Instructors" to switch. Course search still works — type a course code and it switches automatically.
+
+- **Student info on every case.** Cases now show the student's name and email with a link to their Account page, even when the case doesn't have a course attached.
+
+- **Last Date of Activity.** The student's most recent Canvas activity now shows on Account pages (green banner at top) and on Case pages (under the student name). On Account pages, you can also see per-course activity when you expand a course.
+
+- **Better history drawer.** The prior-cases drawer opens next to the main panel instead of floating on top. Both sides scroll together. Cases have a colored left border showing status at a glance (red = escalated, green = resolved). You can now filter by status too — not just case type.
+
+- **Case subjects in history.** Each prior case card now shows the subject line, so you can tell what it's about without clicking into it.
+
+### What's fixed
+
+- **Dev panel field lists now update correctly.** The raw field name lists in the Dev section weren't updating when you navigated between pages. Fixed.
+
+### Under the hood
+
+- 166 automated tests (up from 160).
+- History drawer split into two components for cleaner layout.
+- Removed abbreviation system — full type names are clearer.
+
+---
+
 ## 2026-03-25 (v0.4.0 beta)
 
 ### What's new

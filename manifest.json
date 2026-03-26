@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UEU Dean Tools",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Convenience tools for Unity Environmental University deans — Salesforce and Canvas overlay.",
 
   "browser_specific_settings": {
