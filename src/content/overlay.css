@@ -256,6 +256,16 @@
   font-size: 0.8rem;
 }
 
+.ueu-update-banner {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  color: #92400e;
+  margin-bottom: 0.75rem;
+}
+
 .ueu-error {
   margin: 0 0 0.5rem;
   color: #dc2626;

@@ -17,15 +17,25 @@ import { getPermissions, setPermissions, revokeAll, getSettings } from "../conte
 import { refresh, state } from "../content/core"
 import { useStore } from "./useStore"
 
+const UPDATE_CHECK_URL = "https://raw.githubusercontent.com/Unity-Environmental-University/ueu-dean-extension/main/manifest.json"
+
 export function Overlay() {
   const [open, setOpen] = createSignal(false)
   const [copied, setCopied] = createSignal(false)
   const [sendStatus, setSendStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
   const [drawerOpen, setDrawerOpen] = createSignal(false)
+  const [updateAvailable, setUpdateAvailable] = createSignal<string | null>(null)
 
   const [perms, { refetch: refetchPerms }] = createResource(getPermissions)
   const [supportId, setSupportId] = createSignal("")
   getSettings().then(s => setSupportId(s.supportCanvasId))
+
+  // Check for updates once on load
+  const installedVersion = browser.runtime.getManifest().version
+  fetch(UPDATE_CHECK_URL, { cache: "no-store" })
+    .then(r => r.json())
+    .then(m => { if (m.version && m.version !== installedVersion) setUpdateAvailable(m.version) })
+    .catch(() => { /* silent — update check is best-effort */ })
 
   const get = useStore()
   const diagnostics = get("diagnostics")
@@ -221,6 +231,13 @@ export function Overlay() {
             <header>
               <h2>Dean Tools</h2>
             </header>
+
+            <Show when={updateAvailable()}>
+              <div class="ueu-update-banner">
+                v{updateAvailable()} available (you have v{installedVersion}).
+                Reload extension in <a href="chrome://extensions" target="_blank">chrome://extensions</a> to update.
+              </div>
+            </Show>
 
             <Show when={hasConsent()} fallback={
               <section class="ueu-consent">
