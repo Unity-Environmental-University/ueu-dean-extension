@@ -6,25 +6,42 @@ Chrome MV3 extension for UEU deans, advisors, and staff. Lives on Salesforce pag
 
 ```
 src/
-  background/index.ts    — Service worker. Proxies SF + Canvas API calls (cookie auth). Message router.
+  background/index.ts       — Service worker. Proxies SF + Canvas API calls (cookie auth). Message router.
   content/
-    core.ts              — Heart. Watches URL, dispatches loaders, owns shared reactive state.
-    load-case.ts         — Pure async loader for Case pages. Injected deps, never touches state directly.
-    load-account.ts      — Pure async loader for Account pages.
-    load-course-offering.ts — Pure async loader for CourseOffering pages.
+    core.ts                 — Heart. URL polling, navigation dispatch, state ownership, clearAllPageState().
+    state.ts                — Shared reactive state object, clear functions, applyPatch, navToken.
+    load-case.ts            — Case page orchestrator. Injected deps, never touches state directly.
+    load-account.ts         — Account page loader.
+    load-course-offering.ts — CourseOffering page loader. Canvas roster is primary student source.
     load-canvas-messages.ts — Canvas conversations + masquerade probe. Pure async.
-    sfapi.ts             — SF REST API helpers (getRecord, sfQuery, describeObject).
-    permissions.ts       — Extension storage: consent gate, settings, canvas capabilities cache.
-    field-utils.ts       — Shared utilities (cleanTermName).
-    resolve.ts           — Field resolution with diagnostic logging (pick, diag, makeFieldAccessor).
-    observer.ts          — DOM field observation for SF pages.
-    student-courses.ts   — Canvas course grouping by term.
-    overlay.css          — All styles (injected into Shadow DOM).
+    case-helpers.ts         — SOQL builder, record mapper, incident classifier, email matcher.
+    case-types.ts           — Shared type definitions for the case loading pipeline.
+    case-student-resolution.ts — Student lookup pipeline: account → enrollment → contact → email.
+    case-course-and-instructor.ts — CO resolution + instructor Canvas lookup.
+    sfapi.ts                — SF REST API helpers (getRecord, sfQuery, describeObject, parseRecordUrl).
+    permissions.ts          — Extension storage: consent gate, settings, canvas capabilities cache.
+    field-utils.ts          — Shared utilities (cleanTermName).
+    resolve.ts              — Field resolution with diagnostic logging (pick, diag, makeFieldAccessor).
+    observer.ts             — DOM field observation for SF pages.
+    student-courses.ts      — Canvas course grouping by term.
+    overlay.css             — All styles (injected into Shadow DOM).
   components/
-    Overlay.tsx          — Root component. Permission gate, dev tools, feedback.
-    CaseView.tsx         — Case page: case info, dishonesty, grade appeal, Canvas, messages, history drawer.
-    AccountView.tsx      — Account page: courses by term, scores, inbox.
-    CourseOfferingView.tsx — Course roster with grades.
+    Overlay.tsx             — Root shell. Permission gate, view routing, diagnostic builder, update check.
+    CaseView.tsx            — Case page shell — composes sub-components below.
+    HistoryDrawer.tsx       — Prior cases list with subtype filter chips.
+    CanvasSection.tsx       — Canvas course links, student info, message viewer.
+    DishonestySummary.tsx   — Academic dishonesty details.
+    GradeAppealSummary.tsx  — Grade appeal details.
+    InstructorCard.tsx      — Instructor info with Canvas links.
+    CanvasUserLinks.tsx     — Shared Profile/Act-as/Grades links (deduped).
+    DevTools.tsx            — Diagnostic panel, field dump, support messaging.
+    FeedbackFooter.tsx      — Close, docs link, feedback form.
+    AccountView.tsx         — Account page: courses by term, scores, case list, inbox.
+    CourseOfferingView.tsx  — Course roster with grades.
+    useStore.ts             — Reactive accessor factory for shared state.
+    caseViewHelpers.ts      — Acronym helper, incident labels.
+    safe-text.ts            — FERPA-safe hashing for diagnostics.
+    format.ts               — Score formatting, LDA formatting, color helpers.
 ```
 
 ## Key Patterns
@@ -41,10 +58,11 @@ src/
 
 ## When Adding State
 
-1. Add the field to `state` in core.ts
-2. If it comes from a loader via `CasePatch`, add it to the `CasePatch` interface in load-case.ts AND the `applyPatch` function in core.ts
-3. Add the accessor in the relevant view component
-4. Reset it in the appropriate loader wrapper (loadCaseWrapper, loadAccount, etc.) and in `doNavigate`'s clear block
+1. Add the field to `state` in state.ts
+2. Add it to `clearAllPageState()` in state.ts (this is the **sole authority** for state resets — loaders do not clear state)
+3. If it comes from a loader via `CasePatch`, add it to the `CasePatch` interface in case-types.ts AND the `applyPatch` function in state.ts
+4. Add the accessor in the relevant view component via `get("fieldName")`
+5. **Always use `get()` reactive accessors in JSX** — never read `state.*` directly in `<Show when=...>` or other reactive positions (Solid won't track plain property reads)
 
 ## Who Uses This
 
