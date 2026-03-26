@@ -4,45 +4,34 @@
 
 ## 2026-03-25 (v0.4.0 beta)
 
-### New
+### What's new
 
-- **Expandable case list on Account pages.** The open-cases count now expands on click to show all cases with links, status, type, and course info. Previously just showed a number.
+- **See actual cases on student profiles.** When you're on an Account page, the open-cases count is now clickable. It expands to show each case with a link, status, type, and course.
 
-- **FERPA-safe field name dump.** Dev panel has a new "Copy field names" button that copies all SF API field names without values. Safe to paste to developers for debugging field mapping.
+- **Update notice.** When a new version is available, you'll see a yellow banner at the top of the panel telling you to update.
 
-- **Build timestamp in Dev panel.** Shows which build you're running so you can verify after reloading.
+- **Field name tool for developers.** The Dev panel has a "Copy field names" button. It copies all the Salesforce field names on the current page — no student data, just the field names. Useful for reporting which fields are missing.
 
-- **CourseOffering field dump.** The field name dump now works on CourseOffering pages too, not just Cases.
+### What's fixed
 
-### Fixed
+- **Moving between pages works now.** Before, clicking from a Case to a student Account (or to a Course Offering) could show leftover data from the last page. Now each page starts fresh.
 
-- **Navigation between page types now works reliably.** Salesforce Lightning sometimes navigates without triggering the History API. Added URL polling to catch these silent navigations. Previously, navigating Case → Account → CourseOffering could show stale data from the previous page.
+- **Course Offering pages show the right thing.** They were accidentally showing the Case view. Fixed.
 
-- **State is fully cleared between pages.** All page-specific state (case data, account data, Canvas links, instructor, conversations) is now reset on every navigation. Previously, data from one page type could leak into another.
+- **Course Offering rosters load from Canvas.** The Salesforce query for enrolled students was using the wrong table name. Now the extension pulls the roster directly from Canvas, which also gives you grades and last-activity dates.
 
-- **CourseOffering pages now show the correct view.** Fixed a Solid.js reactivity issue where the view router read page type from a non-reactive source. Also fixed the enrollment SOQL to query the correct object (`CourseOfferingParticipant`).
+- **No more "Unk" labels.** Cases that don't have a type or status used to show "Unk." Now they just don't show those fields.
 
-- **Canvas roster is now the primary student source.** CourseOffering pages pull students from Canvas (which has grades and activity data) instead of relying on a SF SOQL query that used wrong field names. SF enriches when available; SOQL errors surface in diagnostics.
+- **No more stuck "Loading..." screens.** If you navigate to a page the extension doesn't support (like a Learning Course), it stops loading instead of spinning forever.
 
-- **No more "Unk" labels.** Cases with null type or status now hide those elements instead of displaying "Unknown" badges.
+- **Crashes after reloading the extension.** If Chrome restarts the extension in the background, you used to get a white screen and console errors. Now you get a clear message: "Extension was reloaded — please refresh this page."
 
-- **Stuck loading on unrecognized pages.** Pages like LearningCourse no longer leave the extension in a permanent loading state.
+- **Pronouns now show up.** The extension was looking for the wrong field name. Now it finds `PersonGenderIdentity` and `PersonPronouns` correctly.
 
-- **Extension reload is handled gracefully.** When the MV3 service worker dies, the extension shows "Extension was reloaded — please refresh this page" instead of crashing with a console error.
+### Under the hood
 
-- **Null Status/Type crash.** SF can return null for Status and Type fields. The interface now reflects this and the mapper defaults safely.
-
-- **Gender identity field.** Now looks up `PersonGenderIdentity` and `PersonPronouns` (standard SF Person Account fields) instead of only custom field names.
-
-### Improved
-
-- **Component architecture.** CaseView (509 lines) split into 7 focused components. Overlay (475 lines) split into 4. Largest component is now 166 lines.
-
-- **Canvas link deduplication.** Profile/Act-as/Grades links extracted into a shared `CanvasUserLinks` component — one implementation, consistent masquerade gating.
-
-- **Instructor routing.** SF ID prefix routing (001→Account, 003→Contact) skips unnecessary API calls.
-
-- **Test coverage.** 160 tests across 15 files, including property tests for the loadCase orchestrator.
+- The two biggest files were split into smaller pieces (12 components total). This makes future changes safer and easier to review.
+- 160 automated tests catch problems before they reach you.
 
 ---
 
