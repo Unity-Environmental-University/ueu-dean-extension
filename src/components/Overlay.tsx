@@ -237,8 +237,8 @@ export function Overlay() {
 
             <Show when={updateAvailable()}>
               <div class="ueu-update-banner">
-                v{updateAvailable()} available (you have v{installedVersion}).
-                Reload extension in <a href="chrome://extensions" target="_blank">chrome://extensions</a> to update.
+                v{updateAvailable()} available (you have v{installedVersion}).{" "}
+                <a href="https://unity-environmental-university.github.io/ueu-dean-extension/update.html" target="_blank" rel="noopener noreferrer">How to update</a>
               </div>
             </Show>
 
