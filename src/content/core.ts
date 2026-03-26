@@ -17,7 +17,7 @@ import { loadAccountCases as loadAccountCasesImpl } from "./load-account-cases"
 import { probeCanvasMasquerade, loadCanvasConversations } from "./load-canvas-messages"
 import { CANVAS_HOST } from "../constants"
 import {
-  state, clearCaseState, clearConversationState, clearAllPageState,
+  state, clearAllPageState,
   stale, bumpNavToken, currentNavToken, applyPatch,
 } from "./state"
 
@@ -71,24 +71,12 @@ function makeCaseDeps(token: number) {
 // ── Loader wrappers ──────────────────────────────────────────────────────────
 
 async function loadCaseWrapper(recordId: string, token: number) {
-  state.loading = true
-  state.error = null
-  clearCaseState()
-  clearConversationState()
-  state.diagnostics = []
-  state.notify()
-
+  // State already cleared by clearAllPageState() in doNavigate
   await loadCaseImpl(recordId, makeCaseDeps(token))
 }
 
 async function loadCourseOffering(recordId: string, token: number) {
-  state.loading = true
-  state.error = null
-  state.canvas = null
-  state.offeringData = null
-  state.diagnostics = []
-  state.notify()
-
+  // State already cleared by clearAllPageState() in doNavigate
   const result = await loadCourseOfferingImpl(recordId, {
     getRecord,
     sfQuery,
@@ -122,11 +110,7 @@ async function loadCourseOffering(recordId: string, token: number) {
 }
 
 async function loadTerm(recordId: string, token: number) {
-  state.loading = true
-  state.error = null
-  state.diagnostics = []
-  state.notify()
-
+  // State already cleared by clearAllPageState() in doNavigate
   try {
     const term = await getRecord<Record<string, unknown>>("Term", recordId)
     if (stale(token)) return
@@ -157,13 +141,7 @@ async function setCanMasquerade(value: boolean | null): Promise<void> {
 }
 
 async function loadAccount(recordId: string, token: number) {
-  state.loading = true
-  state.error = null
-  state.accountData = null
-  state.accountCases = null
-  clearConversationState()
-  state.diagnostics = []
-  state.notify()
+  // State already cleared by clearAllPageState() in doNavigate
 
   // Fire case query in parallel with Canvas courses — it's SF-only, no Canvas needed
   loadAccountCasesImpl(recordId, { sfQuery, isStale: () => stale(token) }).then(casesResult => {
