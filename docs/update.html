@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Update — Dean Tools</title>
+<style>
+
+:root {
+  --cream: #FAF7F2;
+  --ink: #251A10;
+  --ink-mid: #6B5344;
+  --ink-light: #A08070;
+  --coral: #D94F2A;
+  --brass: #B87D2A;
+  --teal: #1B7A68;
+  --grid: #EDE5D8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.75;
+}
+
+.top-nav {
+  padding: 20px 24px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.back-link {
+  font-size: 0.85em;
+  color: var(--ink-mid);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s ease;
+}
+
+.back-link:hover { color: var(--teal); }
+
+.page-header {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 24px 48px;
+}
+
+.eyebrow {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--brass);
+  margin-bottom: 12px;
+}
+
+.page-header h1 {
+  font-size: clamp(1.8em, 5vw, 3em);
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  margin-bottom: 16px;
+}
+
+.setup-line {
+  font-size: 1.05em;
+  color: var(--ink-mid);
+  max-width: 520px;
+}
+
+.steps {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.step {
+  display: flex;
+  gap: 24px;
+  padding: 28px 0;
+  border-top: 1px solid var(--grid);
+}
+
+.step:last-child {
+  border-bottom: 1px solid var(--grid);
+}
+
+.step-number {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--brass);
+  padding-top: 4px;
+  min-width: 28px;
+  flex-shrink: 0;
+}
+
+.step-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.step-body h2 {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+.step-body p {
+  font-size: 0.95em;
+  color: var(--ink-mid);
+  line-height: 1.7;
+}
+
+.step-body p + p {
+  margin-top: 8px;
+}
+
+.step-body .path {
+  display: inline-block;
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 0.88em;
+  background: var(--grid);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+
+.step-body .reassure {
+  margin-top: 10px;
+  font-size: 0.9em;
+  color: var(--teal);
+  font-weight: 500;
+}
+
+.step-body .note {
+  margin-top: 10px;
+  font-size: 0.88em;
+  color: var(--ink-light);
+  font-style: italic;
+}
+
+.step-body a {
+  color: var(--teal);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.step-body a:hover {
+  border-bottom-color: var(--teal);
+}
+
+.step-visual {
+  margin-top: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--grid);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.step-visual svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.version-badge {
+  display: inline-block;
+  background: var(--teal);
+  color: white;
+  font-size: 0.85em;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+footer {
+  border-top: 1px solid var(--grid);
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.footer-inner {
+  max-width: 720px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-credit {
+  font-size: 0.8em;
+  color: var(--ink-light);
+}
+
+.footer-link {
+  font-size: 0.8em;
+  color: var(--ink-light);
+  text-decoration: none;
+  border-bottom: 1px solid var(--grid);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--teal);
+  border-color: var(--teal);
+}
+
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a class="back-link" href="index.html">&larr; Dean Tools</a>
+</nav>
+
+<div class="page-header">
+  <div class="eyebrow">Update</div>
+  <span class="version-badge">Latest: v0.4.0</span>
+  <h1>Two minutes<br>to update.</h1>
+  <p class="setup-line">You saw a yellow banner in Dean Tools saying a new version is ready. Here's how to get it.</p>
+</div>
+
+<div class="steps">
+
+  <div class="step">
+    <div class="step-number">01</div>
+    <div class="step-body">
+      <h2>Download the new version</h2>
+      <p>Go to the <a href="https://github.com/Unity-Environmental-University/ueu-dean-extension/releases" target="_blank">releases page</a>. Click the <strong>.zip</strong> file under the newest version to download it.</p>
+      <p class="note">Ignore the files labelled "Source code" — you want the .zip above them.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">02</div>
+    <div class="step-body">
+      <h2>Replace the old folder</h2>
+      <p>Find the <strong>Dean Tools</strong> folder on your Desktop (where you put it when you first installed). <strong>Delete it</strong> — drag it to the trash.</p>
+      <p>Then double-click the zip you just downloaded. Drag the new <strong>Dean Tools</strong> folder to your Desktop — same name, same place.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 110" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="110" fill="#f6f8fa"/>
+          <!-- Old folder being deleted -->
+          <rect x="36" y="16" width="160" height="36" rx="5" fill="white" stroke="#d0d7de" stroke-width="1" opacity="0.35"/>
+          <rect x="48" y="24" width="18" height="14" rx="2" fill="#A08070" opacity="0.3"/>
+          <rect x="48" y="22" width="10" height="5" rx="1.5" fill="#A08070" opacity="0.2"/>
+          <text x="74" y="36" font-family="system-ui, sans-serif" font-size="11" fill="#A08070" opacity="0.5">Dean Tools</text>
+          <line x1="36" y1="16" x2="196" y2="52" stroke="#D94F2A" stroke-width="1" opacity="0.3"/>
+          <text x="100" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#A08070">delete this</text>
+          <!-- Arrow -->
+          <line x1="216" y1="34" x2="276" y2="34" stroke="#B87D2A" stroke-width="1.5"/>
+          <polygon points="276,30 284,34 276,38" fill="#B87D2A"/>
+          <!-- New folder on Desktop -->
+          <rect x="296" y="10" width="244" height="90" rx="5" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <text x="316" y="28" font-family="system-ui, sans-serif" font-size="10" fill="#8b949e" font-weight="600" letter-spacing="0.05em">DESKTOP</text>
+          <rect x="316" y="40" width="26" height="20" rx="3" fill="#2d6a4f" opacity="0.8"/>
+          <rect x="316" y="37" width="14" height="6" rx="2" fill="#2d6a4f" opacity="0.6"/>
+          <text x="352" y="54" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#24292f">Dean Tools</text>
+          <text x="316" y="78" font-family="system-ui, sans-serif" font-size="10" fill="#5f6368">new version, same name, same place</text>
+          <circle cx="516" cy="55" r="9" fill="#1B7A68" opacity="0.12"/>
+          <path d="M511 55 L514 58 L521 51" stroke="#1B7A68" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">03</div>
+    <div class="step-body">
+      <h2>Reload the extension</h2>
+      <p>Go to <span class="path">chrome://extensions</span> in your browser. Find <strong>UEU Dean Tools</strong> and click the <strong>reload button</strong> — the circular arrow.</p>
+      <p class="reassure">That's it. You're on the new version.</p>
+      <div class="step-visual">
+        <svg viewBox="0 0 580 80" xmlns="http://www.w3.org/2000/svg">
+          <rect width="580" height="80" fill="#f6f8fa"/>
+          <rect x="24" y="12" width="532" height="56" rx="6" fill="white" stroke="#d0d7de" stroke-width="1"/>
+          <rect x="40" y="22" width="36" height="36" rx="6" fill="#2d6a4f"/>
+          <text x="58" y="46" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="white">U</text>
+          <text x="88" y="40" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#202124">UEU Dean Tools</text>
+          <text x="88" y="54" font-family="system-ui, sans-serif" font-size="10" fill="#8b949e">v0.4.0</text>
+          <!-- Reload button -->
+          <circle cx="480" cy="40" r="16" fill="white" stroke="#1B7A68" stroke-width="2"/>
+          <path d="M474 40 a8 8 0 1 1 2 6" stroke="#1B7A68" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <polygon points="474,36 478,40 471,40" fill="#1B7A68"/>
+          <text x="480" y="72" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="500" fill="#1B7A68">click this</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">&mdash;</div>
+    <div class="step-body">
+      <h2>Want to go back to an older version?</h2>
+      <p>Every version stays on the <a href="https://github.com/Unity-Environmental-University/ueu-dean-extension/releases" target="_blank">releases page</a>. Download the one you want and follow these same steps.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-credit">Built by Unity Environmental University</span>
+    <div style="display:flex;gap:16px">
+      <a class="footer-link" href="index.html">&larr; Dean Tools</a>
+      <a class="footer-link" href="install.html">Install</a>
+      <a class="footer-link" href="https://github.com/Unity-Environmental-University/ueu-dean-extension/releases" target="_blank">All releases</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
