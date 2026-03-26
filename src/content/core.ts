@@ -62,7 +62,10 @@ function makeCaseDeps(token: number) {
     canvasFetch,
     checkSession: checkCanvasSession,
     isStale: () => stale(token),
-    onUpdate: applyPatch,
+    onUpdate: (patch: Parameters<typeof applyPatch>[0]) => {
+      if (stale(token)) return        // drop writes from superseded navigations
+      applyPatch(patch)
+    },
     observeFields,
     observeCaseComplete,
   }

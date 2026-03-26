@@ -24,7 +24,7 @@ export interface CaseQueryOpts {
 
 /** Build a SOQL query for case lists. Caller supplies the WHERE clause. */
 export function buildCaseListQuery(opts: CaseQueryOpts): string {
-  const limit = opts.limit ?? 25
+  const limit = opts.limit ?? 100
   return `SELECT ${CASE_LIST_FIELDS} FROM Case WHERE ${opts.where} ORDER BY CreatedDate DESC LIMIT ${limit}`
 }
 

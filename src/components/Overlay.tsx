@@ -5,7 +5,7 @@
  * Everything renders inside the Shadow DOM so our styles apply.
  */
 
-import { createSignal, createResource, Show } from "solid-js"
+import { createSignal, createEffect, createResource, Show } from "solid-js"
 import browser from "webextension-polyfill"
 import { CaseView } from "./CaseView"
 import { createHistoryState, HistoryPanel } from "./HistoryDrawer"
@@ -42,6 +42,15 @@ export function Overlay() {
   const get = useStore()
   const diagnostics = get("diagnostics")
   const page = get("page")
+
+  // Reset history filters + close drawer when navigating to a new page
+  createEffect(() => {
+    page()  // track page changes
+    historyState.setSubTypeFilter("")
+    historyState.setStatusFilter("")
+    setDrawerOpen(false)
+    historyState.setDrawerOpen(false)
+  })
 
   const hasConsent = () => perms()?.sfApi ?? false
 

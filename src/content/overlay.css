@@ -118,7 +118,16 @@
   color: #222;
   flex-shrink: 0;
   transition: border-radius var(--t-drawer) var(--ease-heavy);
+  scrollbar-width: thin;
+  scrollbar-color: #c0c0c0 transparent;
 }
+
+.ueu-dialog-main::-webkit-scrollbar { width: 6px; }
+.ueu-dialog-main::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 3px;
+}
+.ueu-dialog-main::-webkit-scrollbar-thumb:hover { background: #999; }
 
 /* When drawer is open, square off the right side so panels meet */
 .ueu-dialog-drawer-open {
@@ -790,10 +799,20 @@
   font-size: 0.9rem;
   color: #222;
 
-  /* Slide in — width expands, content fades */
-  animation: drawer-in var(--t-drawer) var(--ease-heavy) both;
-  overflow: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #c0c0c0 transparent;
+
+  /* Slide in — width expands, content fades.
+     backwards (not both): lets overflow-y: auto take effect after animation ends */
+  animation: drawer-in var(--t-drawer) var(--ease-heavy) backwards;
 }
+
+.ueu-drawer::-webkit-scrollbar { width: 6px; }
+.ueu-drawer::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 3px;
+}
+.ueu-drawer::-webkit-scrollbar-thumb:hover { background: #999; }
 
 @keyframes drawer-in {
   0% {

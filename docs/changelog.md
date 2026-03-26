@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-03-26 (v0.4.2)
+
+### What's fixed
+
+- **Wrong student name on fast navigation.** Clicking quickly between cases could show the previous case's student name. The async resolution pipeline now drops writes from superseded navigations.
+
+- **History drawer not scrolling.** The prior-cases drawer was locked to its visible height — long case lists were cut off with no scrollbar. Fixed.
+
+- **History filters persisting across cases.** If you filtered by status on one case, that filter silently carried over when you navigated to the next case. Filters now reset on every navigation.
+
+- **Prior cases capped at 25.** The history query had a silent LIMIT 25. Bumped to 100 so high-volume students show their full history.
+
+---
+
 ## 2026-03-26 (v0.4.1)
 
 ### What's new

@@ -59,7 +59,7 @@ export async function loadPriorCases(
 ): Promise<void> {
   deps.onUpdate({ loadingPriorCases: true })
   try {
-    const soql = buildCaseListQuery({ where: `ContactId = '${contactId}'`, limit: 25 })
+    const soql = buildCaseListQuery({ where: `ContactId = '${contactId}'` })
     const result = await deps.sfQuery<CaseListRecord>(soql)
     if (deps.isStale()) return
     deps.onUpdate({
