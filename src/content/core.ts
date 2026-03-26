@@ -221,6 +221,7 @@ async function loadAccount(recordId: string, token: number) {
 // ── Navigation dispatch ──────────────────────────────────────────────────────
 
 let navigateTimer: ReturnType<typeof setTimeout> | null = null
+let navigating = false
 
 function onNavigate() {
   if (navigateTimer) clearTimeout(navigateTimer)
@@ -228,6 +229,20 @@ function onNavigate() {
 }
 
 async function doNavigate() {
+  // If a previous doNavigate is still running, mark for re-run after it bails
+  if (navigating) {
+    onNavigate()
+    return
+  }
+  navigating = true
+  try {
+    await doNavigateInner()
+  } finally {
+    navigating = false
+  }
+}
+
+async function doNavigateInner() {
   const parsed = parseRecordUrl(window.location.pathname)
 
   if (!parsed) {

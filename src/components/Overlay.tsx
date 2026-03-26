@@ -118,6 +118,15 @@ export function Overlay() {
       lines.push(``)
     }
 
+    if (s.accountData) {
+      lines.push(`[accountData]`)
+      lines.push(`  canvasUserId=${s.accountData.canvasUserId ?? "null"}`)
+      lines.push(`  accountName=${s.accountData.accountName ? `[${hash(s.accountData.accountName)}]` : "null"}`)
+      lines.push(`  termGroups=${s.accountData.termGroups.length}`)
+      lines.push(`  error=${s.accountData.error ?? "null"}`)
+      lines.push(``)
+    }
+
     if (s.diagnostics.length > 0) {
       lines.push(`[diagnostics]`)
       s.diagnostics.forEach(d => lines.push(`  ${d.type}: ${d.detail}`))
