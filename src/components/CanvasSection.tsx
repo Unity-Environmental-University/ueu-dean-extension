@@ -4,6 +4,7 @@
 
 import { Show, For } from "solid-js"
 import { loadConversations } from "../content/core"
+import { formatLda } from "./format"
 import { CanvasUserLinks } from "./CanvasUserLinks"
 import type { useStore } from "./useStore"
 
@@ -73,6 +74,12 @@ export function CanvasSection(props: {
                   {" "}<span class="ueu-pronouns">({c().studentPronouns})</span>
                 </Show>
               </p>
+              <Show when={c().lastActivityAt}>
+                <div class="ueu-lda-banner">
+                  <span class="ueu-lda-label">Last activity in this course</span>
+                  <span class="ueu-lda-value">{formatLda(c().lastActivityAt)}</span>
+                </div>
+              </Show>
               <Show when={c().studentId}>
                 <CanvasUserLinks
                   userId={c().studentId!}

@@ -11,7 +11,7 @@ import type { PriorCase } from "./case-types"
 
 /** Fields selected in every case list query */
 const CASE_LIST_FIELDS = [
-  "Id", "CaseNumber", "Type", "SubType__c", "Status", "CreatedDate",
+  "Id", "CaseNumber", "Subject", "Type", "SubType__c", "Status", "CreatedDate",
   "Course_Offering__c",
   "Course_Offering__r.Name",
   "Course_Offering__r.Academic_Term_Display_Name__c",
@@ -32,6 +32,7 @@ export function buildCaseListQuery(opts: CaseQueryOpts): string {
 export interface CaseListRecord {
   Id: string
   CaseNumber: string
+  Subject: string | null
   Type: string | null
   SubType__c: string | null
   Status: string | null
@@ -45,6 +46,7 @@ export function mapCaseRecord(r: CaseListRecord): PriorCase {
   return {
     id: r.Id,
     caseNumber: r.CaseNumber,
+    subject: r.Subject ?? null,
     type: r.Type ?? "Unknown",
     subType: r.SubType__c,
     status: r.Status ?? "Unknown",

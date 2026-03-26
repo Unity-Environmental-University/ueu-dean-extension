@@ -90,10 +90,10 @@ export async function loadCase(recordId: string, deps: LoadCaseDeps): Promise<vo
     const caseData: CaseData = {
       caseNumber: f("Case Number", "CaseNumber") ?? "",
       status: f("Status", "Status") ?? "unknown",
-      contactName: f("Contact Name", "Contact_Name__c", "ContactId") ?? "",
+      contactName: f("Contact Name", "Contact_Name__c") ?? "",
       contactEmail: f("Contact Email", "Contact_Email__c", "ContactEmail", "SuppliedEmail") ?? "",
-      accountName: f("Account Name", "Account_Name__c", "AccountId") ?? "",
-      accountId: null,
+      accountName: f("Account Name", "Contact_Name__c", "Contact_Preferred_Name__c") ?? "",
+      accountId: diagnostics.pick(rec, "AccountId") ?? null,
       contactId: rawContactId,
       type: f("Type", "Type") ?? "",
       subType: f("Sub Type", "SubType__c", "Sub_Type__c") ?? "",

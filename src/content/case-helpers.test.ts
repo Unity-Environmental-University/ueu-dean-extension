@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import fc from "fast-check"
-import { classifyIncident, findExactEmailMatch, extractCourseCode } from "./case-helpers"
+import { classifyIncident, findExactEmailMatch, extractCourseCode, mapCaseRecord, type CaseListRecord } from "./case-helpers"
 
 describe("classifyIncident", () => {
   it("prop: null always yields 'other'", () => {
@@ -163,6 +163,58 @@ describe("findExactEmailMatch", () => {
           expect(findExactEmailMatch(filtered, searchEmail)).toBeNull()
         },
       ),
+      { numRuns: 30 },
+    )
+  })
+})
+
+describe("mapCaseRecord", () => {
+  const base: CaseListRecord = {
+    Id: "500abc",
+    CaseNumber: "00123456",
+    Subject: "Student missed exam",
+    Type: "Academic Dishonesty",
+    SubType__c: "Plagiarism",
+    Status: "Escalated",
+    CreatedDate: "2025-11-15T00:00:00.000Z",
+    Course_Offering__c: "a0Babc",
+    Course_Offering__r: { Name: "BIO101 Fall 2025 - 01", Academic_Term_Display_Name__c: "Fall 2025 - Distance Education" },
+  }
+
+  it("maps all fields from a full record", () => {
+    const result = mapCaseRecord(base)
+    expect(result.id).toBe("500abc")
+    expect(result.caseNumber).toBe("00123456")
+    expect(result.subject).toBe("Student missed exam")
+    expect(result.type).toBe("Academic Dishonesty")
+    expect(result.subType).toBe("Plagiarism")
+    expect(result.status).toBe("Escalated")
+    expect(result.courseCode).toBe("BIO101 - 01")
+    expect(result.courseOfferingId).toBe("a0Babc")
+    expect(result.termName).toBe("Fall 2025")
+  })
+
+  it("handles null subject, type, status gracefully", () => {
+    const result = mapCaseRecord({ ...base, Subject: null, Type: null, Status: null })
+    expect(result.subject).toBeNull()
+    expect(result.type).toBe("Unknown")
+    expect(result.status).toBe("Unknown")
+  })
+
+  it("handles missing Course_Offering__r", () => {
+    const result = mapCaseRecord({ ...base, Course_Offering__c: null, Course_Offering__r: undefined })
+    expect(result.courseName).toBeNull()
+    expect(result.courseCode).toBeNull()
+    expect(result.courseOfferingId).toBeNull()
+    expect(result.termName).toBeNull()
+  })
+
+  it("prop: mapped caseNumber always matches input", () => {
+    fc.assert(
+      fc.property(fc.stringMatching(/^[0-9]{5,8}$/), (num) => {
+        const result = mapCaseRecord({ ...base, CaseNumber: num })
+        expect(result.caseNumber).toBe(num)
+      }),
       { numRuns: 30 },
     )
   })

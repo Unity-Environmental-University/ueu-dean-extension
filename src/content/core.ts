@@ -238,6 +238,9 @@ async function doNavigate() {
 
   if (state.page?.recordId === parsed.recordId && (state.caseData || state.canvas || state.accountData || state.offeringData)) return
 
+  // Clear old state, set new page + loading, then notify once.
+  // Single notify means the UI goes straight from old content → "Loading..."
+  // for the new page type, with no empty-state flash in between.
   clearAllPageState()
   state.page = parsed
   state.loading = true

@@ -11,13 +11,13 @@ import browser from "webextension-polyfill"
 import { getSettings } from "../content/permissions"
 import { state } from "../content/core"
 import { useStore, useCanvasPermissions, useSessionPoll } from "./useStore"
-import { HistoryDrawer } from "./HistoryDrawer"
+import { HistoryToggle, type HistoryDrawerState } from "./HistoryDrawer"
 import { DishonestySummary } from "./DishonestySummary"
 import { GradeAppealSummary } from "./GradeAppealSummary"
 import { CanvasSection } from "./CanvasSection"
 import { InstructorCard } from "./InstructorCard"
 
-export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
+export function CaseView(props: { historyState: HistoryDrawerState; onDrawerToggle?: (open: boolean) => void }) {
   const get = useStore()
 
   const caseData = get("caseData")
@@ -90,12 +90,22 @@ export function CaseView(props: { onDrawerToggle?: (open: boolean) => void }) {
             <Show when={info().subject}>
               <p class="ueu-subject">{info().subject}</p>
             </Show>
+            <Show when={info().contactName}>
+              <div class="ueu-case-contact">
+                <Show when={info().accountId} fallback={<span>{info().contactName}</span>}>
+                  <a href={`/lightning/r/Account/${info().accountId}/view`} target="_blank" rel="noopener noreferrer" class="ueu-contact-link">{info().contactName}</a>
+                </Show>
+                <Show when={info().contactEmail}>
+                  <span class="ueu-contact-email">{info().contactEmail}</span>
+                </Show>
+              </div>
+            </Show>
           </article>
         )}
       </Show>
 
-      {/* Prior cases drawer */}
-      <HistoryDrawer get={get} onDrawerToggle={props.onDrawerToggle} />
+      {/* Prior cases toggle */}
+      <HistoryToggle get={get} state={props.historyState} onToggle={props.onDrawerToggle} />
 
       {/* Dishonesty details */}
       <Show when={dishonesty()}>

@@ -65,6 +65,7 @@ export interface CanvasState {
   studentId: string | null
   studentName: string | null
   studentPronouns?: string | null
+  lastActivityAt?: string | null
 }
 
 export interface DishonestyState {
@@ -98,6 +99,7 @@ export interface InstructorState {
 export interface PriorCase {
   id: string
   caseNumber: string
+  subject: string | null
   type: string
   subType: string | null
   status: string

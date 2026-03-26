@@ -74,9 +74,57 @@ export async function loadAccountCourses(
 
   if (deps.isStale()) return empty
 
-  // 4. Group by term
+  // 4. Fetch enrollments for LDA — the courses endpoint doesn't include last_activity_at
+  try {
+    const enrollments = await deps.canvasFetch<Array<{
+      course_id: number
+      last_activity_at: string | null
+      type: string
+    }>>(
+      `/api/v1/users/${canvasUserId}/enrollments?type[]=StudentEnrollment&state[]=active&state[]=completed&include[]=last_activity&per_page=100`
+    )
+    // Build a map of course_id → last_activity_at (string keys for safe comparison)
+    const ldaMap = new Map<string, string>()
+    for (const e of enrollments) {
+      if (e.last_activity_at) ldaMap.set(String(e.course_id), e.last_activity_at)
+    }
+    diagnostics.add("lda-fetch", `${enrollments.length} enrollment(s), ${ldaMap.size} with LDA`)
+    // Inject LDA into course enrollment data
+    let injected = 0
+    for (const course of courses) {
+      const lda = ldaMap.get(String(course.id))
+      if (lda) {
+        if (course.enrollments && course.enrollments.length > 0) {
+          for (const enrollment of course.enrollments) {
+            if (!enrollment.last_activity_at) {
+              enrollment.last_activity_at = lda
+              injected++
+            }
+          }
+        } else {
+          // No embedded enrollments — create a synthetic one with just LDA
+          course.enrollments = [{
+            type: "StudentEnrollment",
+            enrollment_state: "active",
+            computed_current_score: null,
+            computed_final_score: null,
+            computed_current_grade: null,
+            computed_final_grade: null,
+            last_activity_at: lda,
+          }]
+          injected++
+        }
+      }
+    }
+    diagnostics.add("lda-inject", `${injected} course(s) updated`)
+  } catch (e) {
+    diagnostics.add("lda-error", `Enrollment LDA fetch failed: ${e instanceof Error ? e.message : String(e)}`)
+  }
+
+  if (deps.isStale()) return empty
+
+  // 5. Group by term
   const termGroups = groupByTerm(courses)
   const lastActivityAt = overallLda(termGroups)
-
   return { canvasUserId, accountName, termGroups, lastActivityAt, error: null, diagnostics }
 }

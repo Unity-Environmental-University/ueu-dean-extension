@@ -10,11 +10,13 @@ import { arbCanvasTerm, arbCanvasCourse, arbCanvasCourseSet } from "../test-util
 function makeDeps(overrides: Partial<{
   account: Record<string, unknown>
   courses: CanvasCourse[]
+  enrollments: Array<{ course_id: number; last_activity_at: string | null; type: string }>
   getRecordError: Error
   canvasFetchError: Error
   staleAfter: number  // go stale after N calls
 }>): LoadAccountDeps {
   let callCount = 0
+  let canvasCallCount = 0
   const staleAfter = overrides.staleAfter ?? Infinity
 
   return {
@@ -23,9 +25,14 @@ function makeDeps(overrides: Partial<{
       if (overrides.getRecordError) throw overrides.getRecordError
       return (overrides.account ?? { Name: "Test Student" }) as T
     },
-    canvasFetch: async <T>(_path: string): Promise<T> => {
+    canvasFetch: async <T>(path: string): Promise<T> => {
       callCount++
+      canvasCallCount++
       if (overrides.canvasFetchError) throw overrides.canvasFetchError
+      // Second Canvas call is the enrollments fetch for LDA
+      if (canvasCallCount === 2 || path.includes("/enrollments")) {
+        return (overrides.enrollments ?? []) as T
+      }
       return (overrides.courses ?? []) as T
     },
     isStale: () => callCount > staleAfter,
@@ -233,6 +240,53 @@ describe("prop: canvas auth error yields session-required", () => {
         },
       ),
     )
+  })
+})
+
+// --- Property: LDA from enrollments merges into courses ---
+
+describe("prop: LDA enrollment merge", () => {
+  it("merges last_activity_at from enrollments into course data", async () => {
+    const courses: CanvasCourse[] = [{
+      id: 101, name: "BIO101", course_code: "BIO101", enrollment_term_id: 1,
+      term: { id: 1, name: "Fall 2025", start_at: "2025-09-01T00:00:00Z", end_at: null },
+      enrollments: [{ type: "StudentEnrollment", enrollment_state: "active", computed_current_score: 85, computed_final_score: null, computed_current_grade: "B", computed_final_grade: null, last_activity_at: null }],
+    }]
+    const enrollments = [{ course_id: 101, last_activity_at: "2025-11-20T14:30:00Z", type: "StudentEnrollment" }]
+
+    const deps = makeDeps({
+      account: { Canvas_User_ID__pc: "42", Name: "Student" },
+      courses,
+      enrollments,
+    })
+    const result = await loadAccountCourses("001abc", deps)
+
+    expect(result.lastActivityAt).toBe("2025-11-20T14:30:00Z")
+    expect(result.termGroups[0].courses[0].lastActivityAt).toBe("2025-11-20T14:30:00Z")
+  })
+
+  it("LDA fetch failure is non-fatal — courses still load", async () => {
+    const courses: CanvasCourse[] = [{
+      id: 101, name: "BIO101", course_code: "BIO101", enrollment_term_id: 1,
+      term: { id: 1, name: "Fall 2025", start_at: "2025-09-01T00:00:00Z", end_at: null },
+      enrollments: [{ type: "StudentEnrollment", enrollment_state: "active", computed_current_score: 85, computed_final_score: null, computed_current_grade: "B", computed_final_grade: null, last_activity_at: null }],
+    }]
+
+    let canvasCallCount = 0
+    const deps: LoadAccountDeps = {
+      getRecord: async <T>(): Promise<T> => ({ Canvas_User_ID__pc: "42", Name: "S" }) as T,
+      canvasFetch: async <T>(): Promise<T> => {
+        canvasCallCount++
+        if (canvasCallCount === 2) throw new Error("enrollment fetch failed")
+        return courses as T
+      },
+      isStale: () => false,
+    }
+
+    const result = await loadAccountCourses("001abc", deps)
+    expect(result.error).toBeNull()
+    expect(result.termGroups.length).toBe(1)
+    expect(result.lastActivityAt).toBeNull() // no LDA because enrollment fetch failed
   })
 })
 

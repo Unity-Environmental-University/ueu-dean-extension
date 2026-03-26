@@ -94,7 +94,7 @@ export function AccountView() {
                     <ul class="ueu-history-list">
                       <For each={cases().cases}>
                         {c => (
-                          <li class="ueu-history-card">
+                          <li class="ueu-history-card" data-status={c.status.toLowerCase()}>
                             <div class="ueu-history-card-top">
                               <a href={`/lightning/r/Case/${c.id}/view`} target="_blank" rel="noopener noreferrer" class="ueu-case-link">
                                 {c.caseNumber}
@@ -103,17 +103,20 @@ export function AccountView() {
                                 <span class="ueu-history-date">
                                   {new Date(c.createdDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                                 </span>
-                                <Show when={c.status !== "Unknown"}>
-                                  <span class="ueu-pill" data-status={c.status.toLowerCase()}>{c.status}</span>
-                                </Show>
                               </span>
                             </div>
-                            <Show when={c.type !== "Unknown" || c.subType}>
-                              <div class="ueu-history-card-detail">
-                                <span class="ueu-history-type">
-                                  {c.type !== "Unknown" ? c.type : ""}{c.subType ? `${c.type !== "Unknown" ? " · " : ""}${c.subType}` : ""}
+                            <div class="ueu-history-card-detail">
+                              <Show when={c.status !== "Unknown"}>
+                                <span class="ueu-history-status-text">{c.status}</span>
+                              </Show>
+                              <Show when={c.type !== "Unknown" || c.subType}>
+                                <span class="ueu-history-type" title={`${c.type}${c.subType ? ` · ${c.subType}` : ""}`}>
+                                  {c.status !== "Unknown" ? " · " : ""}{c.type !== "Unknown" ? c.type : ""}{c.subType ? `${c.type !== "Unknown" ? " · " : ""}${c.subType}` : ""}
                                 </span>
-                              </div>
+                              </Show>
+                            </div>
+                            <Show when={c.subject}>
+                              <div class="ueu-history-card-subject">{c.subject}</div>
                             </Show>
                             <Show when={c.courseCode || c.courseName}>
                               <div class="ueu-history-card-course">

@@ -46,6 +46,7 @@ const CASE_TYPES = ["Academic Dishonesty", "Grade Appeal", "General Inquiry", "W
 const arbCase: fc.Arbitrary<PriorCase> = fc.record({
   id: fc.string({ minLength: 1, maxLength: 18 }),
   caseNumber: fc.stringMatching(/^[0-9]{5,8}$/),
+  subject: fc.option(fc.string({ minLength: 1 }), { nil: null }),
   type: fc.constantFrom(...CASE_TYPES),
   subType: fc.option(fc.string({ minLength: 1 }), { nil: null }),
   status: fc.constantFrom(...CASE_STATUSES),

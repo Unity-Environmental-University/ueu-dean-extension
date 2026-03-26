@@ -92,7 +92,17 @@
   to { background: rgba(20,18,16,0.38); }
 }
 
-.ueu-dialog {
+/* Flex wrapper — holds main panel + drawer side by side */
+.ueu-dialog-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  max-height: 85vh;
+
+  animation: dialog-in var(--t-arrive) var(--ease-spring) backwards;
+}
+
+.ueu-dialog-main {
   position: relative;
   background: white;
   border: none;
@@ -100,25 +110,20 @@
   padding: 2rem;
   min-width: 400px;
   max-width: 90vw;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: var(--shadow-lifted);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 0.9rem;
   color: #222;
-
-  /* Arrives: rises into place with weight, slight spring at the end.
-     fill-mode: backwards (not both) so the animation doesn't lock
-     transform after completion — the transition needs to own it. */
-  animation: dialog-in var(--t-arrive) var(--ease-spring) backwards;
-
-  /* Shifts when drawer opens — heavy slide with inertia */
-  transform: translateX(0);
-  transition: transform var(--t-shift) var(--ease-drag);
+  flex-shrink: 0;
+  transition: border-radius var(--t-drawer) var(--ease-heavy);
 }
 
-/* Class toggled by signal — transitions smoothly because
-   the class exists before/after the drawer DOM mounts. */
+/* When drawer is open, square off the right side so panels meet */
 .ueu-dialog-drawer-open {
-  transform: translateX(-180px);
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 @keyframes dialog-in {
@@ -278,6 +283,31 @@
   color: #555;
 }
 
+.ueu-case-contact {
+  margin-top: 0.4rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.ueu-contact-link {
+  color: var(--green);
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.ueu-contact-link:hover {
+  border-bottom-color: var(--green);
+}
+
+.ueu-contact-email {
+  color: #888;
+  font-size: 0.8rem;
+}
+
 .ueu-pill-outline {
   display: inline-block;
   padding: 0.15rem 0.5rem;
@@ -322,11 +352,12 @@
 .ueu-history-card {
   background: #f8f9fa;
   border: 1px solid #e8eaed;
+  border-left: 3px solid #d0d5dd;
   border-radius: 6px;
-  padding: 0.3rem 0.55rem;
+  padding: 0.4rem 0.6rem 0.4rem 0.5rem;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.15rem;
   transition:
     background var(--t-hover) var(--ease-press),
     border-color var(--t-hover) var(--ease-press),
@@ -334,25 +365,43 @@
     transform var(--t-spring) var(--ease-spring);
 }
 
+/* Status-colored left border */
+.ueu-history-card[data-status="new"]        { border-left-color: #0891b2; }
+.ueu-history-card[data-status="open"]       { border-left-color: #d97706; }
+.ueu-history-card[data-status="pending"]    { border-left-color: #2563eb; }
+.ueu-history-card[data-status="escalated"]  { border-left-color: #dc2626; }
+.ueu-history-card[data-status="closed"]     { border-left-color: #9ca3af; }
+.ueu-history-card[data-status="resolved"]   { border-left-color: #16a34a; }
+.ueu-history-card[data-status="completed"]  { border-left-color: #16a34a; }
+.ueu-history-card[data-status="in progress"] { border-left-color: #d97706; }
+.ueu-history-card[data-status="not in violation"] { border-left-color: #16a34a; }
+
 .ueu-history-card:hover {
   background: #f0f4f0;
   border-color: #c8d8c8;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   transform: translateX(3px);
 }
+.ueu-history-card:hover { border-left-width: 3px; } /* preserve left border on hover */
 
 .ueu-history-card-top {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 0.4rem;
+}
+
+.ueu-history-right {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 .ueu-history-card-detail {
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
-  margin-top: 0.15rem;
 }
 
 .ueu-history-type {
@@ -360,11 +409,26 @@
   color: #666;
 }
 
+.ueu-history-status-text {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #888;
+}
+
+.ueu-history-card-subject {
+  font-size: 0.72rem;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ueu-history-card-course {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  margin-top: 0.2rem;
   flex-wrap: wrap;
 }
 
@@ -714,14 +778,10 @@
 /* The drawer */
 
 .ueu-drawer {
-  position: absolute;
-  top: 0;
-  left: 100%;
-  margin-left: 0.5rem;
-  width: 340px;
-  max-height: 80vh;
+  width: 420px;
+  flex-shrink: 0;
   background: white;
-  border-radius: 0.75rem;
+  border-radius: 0 0.75rem 0.75rem 0;
   box-shadow: var(--shadow-lifted);
   padding: 1rem;
   overflow-y: auto;
@@ -730,14 +790,24 @@
   font-size: 0.9rem;
   color: #222;
 
-  /* Heavy slide in — inertia, then spring settle */
-  animation: drawer-in var(--t-drawer) var(--ease-spring) both;
+  /* Slide in — width expands, content fades */
+  animation: drawer-in var(--t-drawer) var(--ease-heavy) both;
+  overflow: hidden;
 }
 
 @keyframes drawer-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translateX(-28px) scale(0.97);
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  40% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+    width: 420px;
   }
 }
 

@@ -49,14 +49,14 @@ export async function resolveStudentFromEnrollment(
   try {
     const enrollmentUrl = `${CANVAS_URL}/courses/${courseId}/enrollments/${enrollmentId}`
     deps.onUpdate({ canvas: { ...canvas, enrollmentUrl }, diagnostics: [{ type: "enrollment-url", detail: enrollmentUrl }] })
-    const enrollments = await deps.canvasFetch<Array<{ id: number; user_id: number; user: { name: string } }>>(
-      `/api/v1/courses/${courseId}/enrollments?enrollment_id[]=${enrollmentId}&type[]=StudentEnrollment&state[]=active&state[]=inactive&state[]=completed`
+    const enrollments = await deps.canvasFetch<Array<{ id: number; user_id: number; user: { name: string }; last_activity_at?: string | null }>>(
+      `/api/v1/courses/${courseId}/enrollments?enrollment_id[]=${enrollmentId}&type[]=StudentEnrollment&state[]=active&state[]=inactive&state[]=completed&include[]=last_activity`
     )
     deps.onUpdate({ diagnostics: [{ type: "enrollment-lookup", detail: `found ${enrollments.length} result(s) for enrollment ${enrollmentId} in course ${courseId}` }] })
     const enrollment = enrollments[0]
     if (enrollment) {
       deps.onUpdate({
-        canvas: { ...canvas, studentId: String(enrollment.user_id), studentName: enrollment.user?.name ?? null },
+        canvas: { ...canvas, studentId: String(enrollment.user_id), studentName: enrollment.user?.name ?? null, lastActivityAt: enrollment.last_activity_at ?? null },
         loadingStudent: false,
       })
       return true

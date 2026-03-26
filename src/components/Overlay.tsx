@@ -8,6 +8,7 @@
 import { createSignal, createResource, Show } from "solid-js"
 import browser from "webextension-polyfill"
 import { CaseView } from "./CaseView"
+import { createHistoryState, HistoryPanel } from "./HistoryDrawer"
 import { AccountView } from "./AccountView"
 import { CourseOfferingView } from "./CourseOfferingView"
 import { DevTools } from "./DevTools"
@@ -25,6 +26,7 @@ export function Overlay() {
   const [sendStatus, setSendStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
   const [drawerOpen, setDrawerOpen] = createSignal(false)
   const [updateAvailable, setUpdateAvailable] = createSignal<string | null>(null)
+  const historyState = createHistoryState()
 
   const [perms, { refetch: refetchPerms }] = createResource(getPermissions)
   const [supportId, setSupportId] = createSignal("")
@@ -227,7 +229,8 @@ export function Overlay() {
 
       <Show when={open()}>
         <div class="ueu-backdrop" onClick={() => setOpen(false)}>
-          <dialog class="ueu-dialog" classList={{"ueu-dialog-drawer-open": drawerOpen()}} open onClick={e => e.stopPropagation()}>
+          <div class="ueu-dialog-wrap" onClick={e => e.stopPropagation()}>
+            <div class="ueu-dialog-main" classList={{"ueu-dialog-drawer-open": drawerOpen()}}>
             <header>
               <h2>Dean Tools</h2>
             </header>
@@ -260,7 +263,7 @@ export function Overlay() {
               <section>
                 <Show when={page()?.objectType === "Account"} fallback={
                   <Show when={page()?.objectType === "CourseOffering"} fallback={
-                    <CaseView onDrawerToggle={setDrawerOpen} />
+                    <CaseView historyState={historyState} onDrawerToggle={setDrawerOpen} />
                   }>
                     <CourseOfferingView />
                   </Show>
@@ -289,7 +292,15 @@ export function Overlay() {
               buildDiagnosticText={buildDiagnosticText}
               caseTag={caseTag}
             />
-          </dialog>
+            </div>{/* end ueu-dialog-main */}
+            <Show when={drawerOpen()}>
+              <HistoryPanel
+                get={get}
+                state={historyState}
+                onClose={() => { historyState.setDrawerOpen(false); setDrawerOpen(false) }}
+              />
+            </Show>
+          </div>{/* end ueu-dialog-wrap */}
         </div>
       </Show>
     </>

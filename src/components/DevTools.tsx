@@ -6,9 +6,9 @@
  */
 
 import { Show } from "solid-js"
-import { state } from "../content/core"
 import { saveSettings } from "../content/permissions"
 import { hash, safeDetail, safeText } from "./safe-text"
+import { useStore } from "./useStore"
 import type { DiagEntry } from "../content/resolve"
 
 export function DevTools(props: {
@@ -24,6 +24,12 @@ export function DevTools(props: {
   onCapture: () => void
   onRevoke: () => void
 }) {
+  const get = useStore()
+  const caseRaw = get("caseRaw")
+  const coRaw = get("coRaw")
+  const copRaw = get("copRaw")
+  const contactRaw = get("contactRaw")
+
   return (
     <details class="ueu-dev">
       <summary>Dev <span style={{"font-size": "0.6rem", "color": "#999"}}>({__BUILD_HASH__})</span></summary>
@@ -34,10 +40,11 @@ export function DevTools(props: {
 
       <button onClick={async () => {
         const sections: string[] = []
-        if (state.caseRaw) sections.push(`## Case fields (${Object.keys(state.caseRaw).length})\n${Object.keys(state.caseRaw).sort().join("\n")}`)
-        if (state.coRaw) sections.push(`## CourseOffering fields (${Object.keys(state.coRaw).length})\n${Object.keys(state.coRaw).sort().join("\n")}`)
-        if (state.copRaw) sections.push(`## COP fields (${Object.keys(state.copRaw).length})\n${Object.keys(state.copRaw).sort().join("\n")}`)
-        if (state.contactRaw) sections.push(`## Contact/Account fields (${Object.keys(state.contactRaw).length})\n${Object.keys(state.contactRaw).sort().join("\n")}`)
+        const cr = caseRaw(), cor = coRaw(), copr = copRaw(), conr = contactRaw()
+        if (cr) sections.push(`## Case fields (${Object.keys(cr).length})\n${Object.keys(cr).sort().join("\n")}`)
+        if (cor) sections.push(`## CourseOffering fields (${Object.keys(cor).length})\n${Object.keys(cor).sort().join("\n")}`)
+        if (copr) sections.push(`## COP fields (${Object.keys(copr).length})\n${Object.keys(copr).sort().join("\n")}`)
+        if (conr) sections.push(`## Contact/Account fields (${Object.keys(conr).length})\n${Object.keys(conr).sort().join("\n")}`)
         if (sections.length === 0) sections.push("No raw records available — navigate to a Case page first")
         await navigator.clipboard.writeText(sections.join("\n\n"))
         props.setCopied(true)
@@ -47,29 +54,37 @@ export function DevTools(props: {
       </button>
       <small>FERPA-safe — copies API field names only, no values</small>
 
-      <Show when={state.caseRaw}>
-        <details class="ueu-dev-raw">
-          <summary>Case fields ({Object.keys(state.caseRaw!).length})</summary>
-          <pre class="ueu-dev-raw-pre">{Object.keys(state.caseRaw!).sort().join("\n")}</pre>
-        </details>
+      <Show when={caseRaw()}>
+        {raw => (
+          <details class="ueu-dev-raw">
+            <summary>Case fields ({Object.keys(raw()).length})</summary>
+            <pre class="ueu-dev-raw-pre">{Object.keys(raw()).sort().join("\n")}</pre>
+          </details>
+        )}
       </Show>
-      <Show when={state.coRaw}>
-        <details class="ueu-dev-raw">
-          <summary>CO fields ({Object.keys(state.coRaw!).length})</summary>
-          <pre class="ueu-dev-raw-pre">{Object.keys(state.coRaw!).sort().join("\n")}</pre>
-        </details>
+      <Show when={coRaw()}>
+        {raw => (
+          <details class="ueu-dev-raw">
+            <summary>CO fields ({Object.keys(raw()).length})</summary>
+            <pre class="ueu-dev-raw-pre">{Object.keys(raw()).sort().join("\n")}</pre>
+          </details>
+        )}
       </Show>
-      <Show when={state.copRaw}>
-        <details class="ueu-dev-raw">
-          <summary>COP fields ({Object.keys(state.copRaw!).length})</summary>
-          <pre class="ueu-dev-raw-pre">{Object.keys(state.copRaw!).sort().join("\n")}</pre>
-        </details>
+      <Show when={copRaw()}>
+        {raw => (
+          <details class="ueu-dev-raw">
+            <summary>COP fields ({Object.keys(raw()).length})</summary>
+            <pre class="ueu-dev-raw-pre">{Object.keys(raw()).sort().join("\n")}</pre>
+          </details>
+        )}
       </Show>
-      <Show when={state.contactRaw}>
-        <details class="ueu-dev-raw">
-          <summary>Contact/Account fields ({Object.keys(state.contactRaw!).length})</summary>
-          <pre class="ueu-dev-raw-pre">{Object.keys(state.contactRaw!).sort().join("\n")}</pre>
-        </details>
+      <Show when={contactRaw()}>
+        {raw => (
+          <details class="ueu-dev-raw">
+            <summary>Contact/Account fields ({Object.keys(raw()).length})</summary>
+            <pre class="ueu-dev-raw-pre">{Object.keys(raw()).sort().join("\n")}</pre>
+          </details>
+        )}
       </Show>
       <Show when={props.diagnostics().length > 0}>
         <details class="ueu-dev-raw">
