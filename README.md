@@ -4,7 +4,7 @@ A browser extension that lives between Stratus and Canvas and makes the next ste
 
 When you're on a case, the student's Canvas grades are three tabs away. This gets it to one button.
 
-**[Documentation](https://unity-environmental-university.github.io/ueu-dean-extension/)** · **[Releases](https://github.com/Unity-Environmental-University/ueu-dean-extension/releases)** · **[Install guide](https://unity-environmental-university.github.io/ueu-dean-extension/install.html)**
+**[Documentation](https://unity-environmental-university.github.io/ueu-dean-extension/)** · **[Releases](https://github.com/Unity-Environmental-University/ueu-dean-extension/releases)** · **[Install](https://unity-environmental-university.github.io/ueu-dean-extension/install.html)** · **[Update](https://unity-environmental-university.github.io/ueu-dean-extension/update.html)**
 
 ---
 
