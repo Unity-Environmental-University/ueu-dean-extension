@@ -101,10 +101,10 @@ describe("resolveInstructor", () => {
     expect(instructorPatch).toBeDefined()
   })
 
-  it("no SF ID, has email → course-scoped Canvas search", async () => {
+  it("no SF ID, has email, exact Canvas match → attaches instructor", async () => {
     const { deps, patches } = makeTestCaseDeps({
       canvasResults: [
-        [{ id: 777, name: "Canvas Prof" }],
+        [{ id: 777, name: "Canvas Prof", email: "prof@unity.edu" }],
       ],
     })
 
@@ -112,6 +112,26 @@ describe("resolveInstructor", () => {
 
     const instructorPatch = patches.find(p => "instructor" in p && p.instructor?.canvasId === "777")
     expect(instructorPatch).toBeDefined()
+  })
+
+  it("no SF ID, single Canvas result whose email does NOT match → rejects loose match (regression guard)", async () => {
+    // Prior implementation silently accepted users[0] when users.length === 1, even if
+    // the email didn't match the search term. Same silent wrong-attribution bug as the
+    // student version of this path. Now we require a strict email/login_id match.
+    const { deps, patches } = makeTestCaseDeps({
+      canvasResults: [
+        [{ id: 777, name: "Different Person", email: "someone-else@unity.edu" }],
+      ],
+    })
+
+    await resolveInstructor("Prof", "prof@unity.edu", null, "100", deps)
+
+    const matched = patches.find(p => "instructor" in p && p.instructor?.canvasId === "777")
+    expect(matched).toBeUndefined()
+    const rejection = patches.find(p =>
+      p.diagnostics?.some(d => d.type === "instructor-lookup" && d.detail.includes("rejecting loose match"))
+    )
+    expect(rejection).toBeDefined()
   })
 
   it("no email, no SF ID → emits instructor with name only", async () => {

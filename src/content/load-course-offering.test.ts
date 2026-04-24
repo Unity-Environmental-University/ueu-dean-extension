@@ -36,11 +36,11 @@ function makeDeps(overrides: Partial<{
 }
 
 describe("loadCourseOffering", () => {
-  it("happy path: CO with Canvas ID + SF students + Canvas roster", async () => {
+  it("happy path: joins on Canvas User ID, carries Contact + grades", async () => {
     const deps = makeDeps({
       co: { Name: "BIO 101 Fall 2025", Canvas_Course_ID__c: "500", Academic_Term_Display_Name__c: "F25" },
       sfStudents: [
-        { Id: "COP1", hed__Contact__c: "003A", hed__Contact__r: { Name: "Alice", Email: "alice@unity.edu", Canvas_User_ID__c: "42" } },
+        { Id: "COP1", ParticipantContactId: "003A", Canvas_Enrollment_ID__c: "E1", Contact: { Name: "Alice", Email: "alice@unity.edu", Canvas_User_ID__c: "42" } },
       ],
       canvasEnrollments: [
         { user_id: 42, user: { name: "Alice" }, grades: { current_score: 92.5, current_grade: "A" }, last_activity_at: "2025-11-01T00:00:00Z", enrollment_state: "active" },
@@ -54,6 +54,8 @@ describe("loadCourseOffering", () => {
     expect(result.error).toBeNull()
     expect(result.students).toHaveLength(1)
     expect(result.students[0].name).toBe("Alice")
+    expect(result.students[0].contactId).toBe("003A")
+    expect(result.students[0].canvasUserId).toBe("42")
     expect(result.students[0].currentScore).toBe(92.5)
     expect(result.students[0].lastActivityAt).toBe("2025-11-01T00:00:00Z")
   })
@@ -132,6 +134,84 @@ describe("loadCourseOffering", () => {
         expect(result.students).toEqual([])
       }
     ), { numRuns: 5 })
+  })
+
+  it("duplicate names + shared email prefix → still joined correctly via Canvas ID", async () => {
+    // Regression guard: identity comes from Canvas User ID only. Even when two
+    // students share a display name AND we'd otherwise collide via name, the
+    // id↔id join gives each Canvas user its own SF Contact.
+    const deps = makeDeps({
+      co: { Name: "BIO 101", Canvas_Course_ID__c: "500" },
+      sfStudents: [
+        { Id: "COP_A", ParticipantContactId: "003AAA", Canvas_Enrollment_ID__c: "E1", Contact: { Name: "John Smith", Email: "john.smith.a@unity.edu", Canvas_User_ID__c: "1" } },
+        { Id: "COP_B", ParticipantContactId: "003BBB", Canvas_Enrollment_ID__c: "E2", Contact: { Name: "John Smith", Email: "john.smith.b@unity.edu", Canvas_User_ID__c: "2" } },
+      ],
+      canvasEnrollments: [
+        { user_id: 1, user: { name: "John Smith", login_id: "john.smith.a@unity.edu" }, grades: { current_score: 90, current_grade: "A" }, last_activity_at: null, enrollment_state: "active" },
+        { user_id: 2, user: { name: "John Smith", login_id: "john.smith.b@unity.edu" }, grades: { current_score: 70, current_grade: "C" }, last_activity_at: null, enrollment_state: "active" },
+      ],
+    })
+
+    const result = await loadCourseOffering("CO_DUPNAME", deps)
+
+    expect(result.students).toHaveLength(2)
+    const a = result.students.find(s => s.canvasUserId === "1")
+    const b = result.students.find(s => s.canvasUserId === "2")
+    expect(a?.contactId).toBe("003AAA")
+    expect(b?.contactId).toBe("003BBB")
+    expect(result.error).toBeNull()
+  })
+
+  it("Canvas user with no matching SF Canvas_User_ID__c → loud error, no silent fallback", async () => {
+    // Two Canvas enrollments; only one has a matching SF Contact by Canvas ID.
+    // The unmatched Canvas user must NOT inherit the other's SF Contact by name/email.
+    const deps = makeDeps({
+      co: { Name: "BIO 101", Canvas_Course_ID__c: "500" },
+      sfStudents: [
+        { Id: "COP_A", ParticipantContactId: "003AAA", Canvas_Enrollment_ID__c: "E1", Contact: { Name: "Alice", Email: "alice@unity.edu", Canvas_User_ID__c: "1" } },
+      ],
+      canvasEnrollments: [
+        { user_id: 1, user: { name: "Alice", login_id: "alice@unity.edu" }, grades: { current_score: 90, current_grade: "A" }, last_activity_at: null, enrollment_state: "active" },
+        { user_id: 999, user: { name: "Alice", login_id: "alice@unity.edu" }, grades: { current_score: 50, current_grade: "F" }, last_activity_at: null, enrollment_state: "active" },
+      ],
+    })
+
+    const result = await loadCourseOffering("CO_ORPHAN", deps)
+
+    expect(result.students).toHaveLength(2)
+    const matched = result.students.find(s => s.canvasUserId === "1")
+    const orphan = result.students.find(s => s.canvasUserId === "999")
+    expect(matched?.contactId).toBe("003AAA")
+    // Orphan Canvas user must not silently inherit Alice's SF contact by email/name.
+    expect(orphan?.contactId).toBeNull()
+    // Loud UI error surfaces the mismatch.
+    expect(result.error).toContain("Roster mismatch")
+    expect(result.error).toContain("1 Canvas student")
+    // Per-user diagnostic identifies which Canvas user didn't match.
+    const mismatch = result.diagnostics.find(d => d.type === "student-id-mismatch")
+    expect(mismatch).toBeDefined()
+    expect(mismatch?.detail).toContain("user_id=999")
+  })
+
+  it("SF Contact missing Canvas_User_ID__c → counted in diagnostics, cannot enrich", async () => {
+    const deps = makeDeps({
+      co: { Name: "BIO 101", Canvas_Course_ID__c: "500" },
+      sfStudents: [
+        { Id: "COP_A", ParticipantContactId: "003AAA", Canvas_Enrollment_ID__c: "E1", Contact: { Name: "Alice", Email: "alice@unity.edu" /* no Canvas_User_ID__c */ } },
+      ],
+      canvasEnrollments: [
+        { user_id: 1, user: { name: "Alice", login_id: "alice@unity.edu" }, grades: { current_score: 90, current_grade: "A" }, last_activity_at: null, enrollment_state: "active" },
+      ],
+    })
+
+    const result = await loadCourseOffering("CO_NOID", deps)
+
+    // SF row is present but unjoinable.
+    const warn = result.diagnostics.find(d => d.type === "co-enrichment")
+    expect(warn?.detail).toContain("no Canvas_User_ID__c")
+    // Canvas user is unmatched → roster-mismatch error surfaces loudly.
+    expect(result.students[0].contactId).toBeNull()
+    expect(result.error).toContain("Roster mismatch")
   })
 
   it("prop: never throws", async () => {

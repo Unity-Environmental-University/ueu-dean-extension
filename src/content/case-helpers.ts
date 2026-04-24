@@ -68,18 +68,17 @@ export function classifyIncident(raw: string | null): string {
   return "other"
 }
 
-/** Find an exact email match in a Canvas user search result */
+/** Find a strictly-exact email match in a Canvas user search result.
+ *  Matches only when `email` or `login_id` equals the target (case-insensitive).
+ *  Does NOT fall back to "the only result" — that's a separate, opt-in helper. */
 export function findExactEmailMatch(
   users: Array<{ id: number; name: string; email?: string; login_id?: string }>,
   email: string,
 ): { id: number; name: string } | null {
   const lower = email.toLowerCase()
-  const exact = users.find(u =>
+  return users.find(u =>
     u.email?.toLowerCase() === lower || u.login_id?.toLowerCase() === lower
-  )
-  if (exact) return exact
-  if (users.length === 1) return users[0]
-  return null
+  ) ?? null
 }
 
 /** Extract a course code like "BIO101 - 01" from a course offering name */

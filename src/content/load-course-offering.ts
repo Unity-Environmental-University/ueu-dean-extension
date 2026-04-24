@@ -101,16 +101,18 @@ export async function loadCourseOffering(
 
   if (deps.isStale()) return empty
 
-  // 2. SOQL: enrolled students via CourseOfferingParticipant
+  // 2. SOQL: enrolled students via CourseOfferingParticipant.
+  //    Pull Contact.Canvas_User_ID__c — this is the identity key we join on.
+  //    Email and name are carried only for display/diagnostics, never for joining.
   let sfStudents: Array<{
     Id: string
     ParticipantContactId: string | null
     Canvas_Enrollment_ID__c: string | null
-    Contact?: { Name?: string; Email?: string }
+    Contact?: { Name?: string; Email?: string; Canvas_User_ID__c?: string | null }
   }> = []
 
   const soql = `SELECT Id, ParticipantContactId, Canvas_Enrollment_ID__c,
-    Contact.Name, Contact.Email
+    Contact.Name, Contact.Email, Contact.Canvas_User_ID__c
     FROM CourseOfferingParticipant
     WHERE CourseOfferingId = '${recordId}'
     ORDER BY Contact.Name
@@ -145,33 +147,61 @@ export async function loadCourseOffering(
 
   if (deps.isStale()) return empty
 
-  // 4. Build student list — Canvas roster is primary, SF enriches
-  // Index SF students by name for enrichment (no Canvas user ID on COP)
-  const sfByName = new Map<string, typeof sfStudents[0]>()
+  // 4. Build student list — Canvas roster is primary, SF enriches.
+  //
+  // Join strategy: Canvas User ID is the sole identity key. SF Contacts carry
+  // Canvas_User_ID__c, Canvas enrollments carry user_id — an id↔id comparison
+  // with no ambiguity. Name/email joins collapse identity to a proxy and have
+  // historically produced the wrong-student bug, so they are not used as
+  // fallbacks. If a Canvas enrollment has no matching SF Contact by Canvas ID,
+  // we emit a loud per-student diagnostic and surface a roster-mismatch error.
+  const sfByCanvasId = new Map<string, typeof sfStudents[0]>()
+  let sfWithoutCanvasId = 0
   for (const r of sfStudents) {
-    const name = r.Contact?.Name
-    if (name) sfByName.set(name.toLowerCase(), r)
+    const id = r.Contact?.Canvas_User_ID__c
+    if (id) sfByCanvasId.set(String(id), r)
+    else sfWithoutCanvasId++
+  }
+  if (sfWithoutCanvasId > 0) {
+    diagnostics.push({ type: "co-enrichment", detail: `${sfWithoutCanvasId} SF student(s) in this offering have no Canvas_User_ID__c — cannot be joined to Canvas roster` })
   }
 
   let students: EnrolledStudent[]
+  let rosterError: string | null = null
 
   if (canvasRoster.size > 0) {
-    // Canvas is primary — has grades, activity, enrollment state
+    // Canvas is primary — has grades, activity, enrollment state.
+    // Join strictly on Canvas user_id. No email/name fallback.
+    let enriched = 0
+    let unmatched = 0
     students = [...canvasRoster.values()].map(ce => {
-      const sfMatch = ce.user?.name ? sfByName.get(ce.user.name.toLowerCase()) : undefined
+      const canvasIdStr = String(ce.user_id)
+      const sfMatch = sfByCanvasId.get(canvasIdStr)
+      if (sfMatch) {
+        enriched++
+      } else {
+        unmatched++
+        diagnostics.push({
+          type: "student-id-mismatch",
+          detail: `Canvas user_id=${canvasIdStr} (${ce.user?.name ?? "unknown"}) has no SF Contact with matching Canvas_User_ID__c in this offering`,
+        })
+      }
       return {
         contactId: sfMatch?.ParticipantContactId ?? null,
         accountId: null,
         name: ce.user?.name ?? "Unknown",
         email: ce.user?.login_id ?? sfMatch?.Contact?.Email ?? null,
-        canvasUserId: String(ce.user_id),
+        canvasUserId: canvasIdStr,
         currentScore: ce.grades?.current_score ?? null,
         currentGrade: ce.grades?.current_grade ?? null,
         lastActivityAt: ce.last_activity_at ?? null,
         enrollmentState: ce.enrollment_state ?? null,
       }
     })
-    diagnostics.push({ type: "student-source", detail: `canvas-primary (${students.length} students, ${sfStudents.length} SF matches)` })
+    diagnostics.push({ type: "student-source", detail: `canvas-primary (${students.length} students; ${enriched} enriched by Canvas ID, ${unmatched} unmatched)` })
+    if (unmatched > 0) {
+      rosterError = `Roster mismatch: ${unmatched} Canvas student(s) could not be matched to a Salesforce Contact by Canvas User ID. Clicking a student will not open their SF record.`
+    }
   } else if (sfStudents.length > 0) {
     // SF fallback — no grades but has names
     students = sfStudents.map(r => ({
@@ -199,7 +229,7 @@ export async function loadCourseOffering(
     instructorName,
     instructorCanvasId: null, // resolved separately if needed
     students,
-    error: null,
+    error: rosterError,
     diagnostics,
     coRaw: co,
   }

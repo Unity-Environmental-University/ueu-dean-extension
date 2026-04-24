@@ -103,7 +103,11 @@ export async function resolveStudentFromContact(
     deps.onUpdate({ loadingStudent: false, studentError: "No email on contact record" })
     return true
   } catch (e) {
-    if (fallbackEmail) return lookupCanvasStudentByEmail(fallbackEmail, canvas, deps)
+    deps.onUpdate({ diagnostics: [{ type: "contact-lookup", detail: `Contact ${contactId} fetch failed: ${e}` }] })
+    if (fallbackEmail) {
+      deps.onUpdate({ diagnostics: [{ type: "contact-lookup", detail: `falling back to case email ${fallbackEmail}` }] })
+      return lookupCanvasStudentByEmail(fallbackEmail, canvas, deps)
+    }
     deps.onUpdate({ loadingStudent: false, studentError: "Could not look up student" })
     return true
   }
@@ -129,7 +133,15 @@ export async function lookupCanvasStudentByEmail(
         })
         return true
       }
-      deps.onUpdate({ diagnostics: [{ type: "student-email-lookup", detail: `course-scoped: ${users.length} result(s), no exact match` }] })
+      if (users.length === 1) {
+        // Previously we returned users[0] here. That was the silent "wrong student" bug —
+        // Canvas search_users matches name tokens, so a single-hit with a different email
+        // was accepted as "close enough". We now refuse it and let email → global search run.
+        const u = users[0]
+        deps.onUpdate({ diagnostics: [{ type: "student-email-lookup", detail: `course-scoped: single result id=${u.id} email=${u.email ?? "?"} login=${u.login_id ?? "?"} did NOT match ${email} — rejecting loose match` }] })
+      } else {
+        deps.onUpdate({ diagnostics: [{ type: "student-email-lookup", detail: `course-scoped: ${users.length} result(s), no exact match` }] })
+      }
     } catch (e) {
       if (isCanvasAuthError(e)) {
         deps.onUpdate({ loadingStudent: false, studentError: "canvas-session-required" })
@@ -151,6 +163,10 @@ export async function lookupCanvasStudentByEmail(
         diagnostics: [{ type: "student-email-lookup", detail: `global: exact match ${match.id} (of ${users.length} results)` }],
       })
       return true
+    }
+    if (users.length === 1) {
+      const u = users[0]
+      deps.onUpdate({ diagnostics: [{ type: "student-email-lookup", detail: `global: single result id=${u.id} email=${u.email ?? "?"} login=${u.login_id ?? "?"} did NOT match ${email} — rejecting loose match` }] })
     }
   } catch (e) {
     if (isCanvasAuthError(e)) {

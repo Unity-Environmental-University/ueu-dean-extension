@@ -7,6 +7,7 @@
 import { CANVAS_URL } from "../constants"
 import { createDiagLog } from "./resolve"
 import { resolveStudent } from "./case-student-resolution"
+import { findExactEmailMatch } from "./case-helpers"
 import type { LoadCaseDeps, CanvasState, InstructorState } from "./case-types"
 
 export async function resolveCanvasFromCo(
@@ -114,7 +115,9 @@ export async function resolveInstructor(
         log.add("instructor-lookup", `${objectType.toLowerCase()} found but no Canvas user ID`)
         break // found the record, just no Canvas ID — don't try next type
       } catch (e) {
-        log.add("instructor-lookup", `${objectType.toLowerCase()} fetch failed: ${e}`)
+        // Emit directly rather than adding to `log` — `log` is only flushed inside the
+        // try-branch above, so throws in the catch would otherwise be silently discarded.
+        deps.onUpdate({ diagnostics: [{ type: "instructor-lookup", detail: `${objectType.toLowerCase()} fetch failed: ${e}` }] })
       }
     }
   }
@@ -123,16 +126,25 @@ export async function resolveInstructor(
 
   if (courseId) {
     try {
-      const users = await deps.canvasFetch<Array<{ id: number; name: string }>>(
-        `/api/v1/courses/${courseId}/search_users?search_term=${encodeURIComponent(email)}&enrollment_type[]=teacher&enrollment_type[]=ta&per_page=5`
+      const users = await deps.canvasFetch<Array<{ id: number; name: string; email?: string; login_id?: string }>>(
+        `/api/v1/courses/${courseId}/search_users?search_term=${encodeURIComponent(email)}&enrollment_type[]=teacher&enrollment_type[]=ta&include[]=email&include[]=login_id&per_page=5`
       )
-      if (users.length > 0) {
-        instructor.canvasId = String(users[0].id)
-        if (!instructor.name || instructor.name === name) instructor.name = users[0].name
-        deps.onUpdate({ instructor: { ...instructor }, diagnostics: [{ type: "instructor-lookup", detail: `course-scoped email=${email} canvasId=${instructor.canvasId}` }] })
+      const match = findExactEmailMatch(users, email)
+      if (match) {
+        instructor.canvasId = String(match.id)
+        if (!instructor.name || instructor.name === name) instructor.name = match.name
+        deps.onUpdate({ instructor: { ...instructor }, diagnostics: [{ type: "instructor-lookup", detail: `course-scoped exact match email=${email} canvasId=${instructor.canvasId} (of ${users.length} results)` }] })
         return
       }
-      deps.onUpdate({ diagnostics: [{ type: "instructor-lookup", detail: `course-scoped: no match for ${email}` }] })
+      if (users.length === 1) {
+        // Prior implementation accepted users[0] here without verifying email. Same silent
+        // foot-gun as the student search_users path — Canvas matches name tokens, so a lone
+        // hit with a different email could be wrongly attributed. Reject and log.
+        const u = users[0]
+        deps.onUpdate({ diagnostics: [{ type: "instructor-lookup", detail: `course-scoped: single teacher/TA result id=${u.id} email=${u.email ?? "?"} login=${u.login_id ?? "?"} did NOT match ${email} — rejecting loose match` }] })
+      } else {
+        deps.onUpdate({ diagnostics: [{ type: "instructor-lookup", detail: `course-scoped: ${users.length} result(s), no exact match for ${email}` }] })
+      }
     } catch (e) {
       deps.onUpdate({ diagnostics: [{ type: "instructor-lookup", detail: `course-scoped failed: ${e}` }] })
     }

@@ -122,7 +122,11 @@ describe("findExactEmailMatch", () => {
     )
   })
 
-  it("prop: single-user fallback — returns sole user even without email match", () => {
+  it("prop: single non-matching user returns null (strict — no loose fallback)", () => {
+    // Regression guard: the prior implementation returned users[0] when there was
+    // exactly one result, even if its email/login_id did not match. That was the
+    // silent "wrong student" bug: Canvas search_users matches name tokens, so a
+    // lone hit with a different email was accepted as "close enough".
     fc.assert(
       fc.property(
         fc.emailAddress(),
@@ -130,12 +134,9 @@ describe("findExactEmailMatch", () => {
         fc.nat({ max: 99999 }),
         fc.string({ minLength: 1 }),
         (searchEmail, otherEmail, id, name) => {
-          // Ensure emails are actually different
           if (searchEmail.toLowerCase() === otherEmail.toLowerCase()) return
           const users = [{ id, name, email: otherEmail }]
-          const result = findExactEmailMatch(users, searchEmail)
-          // Single user fallback
-          expect(result).toMatchObject({ id, name })
+          expect(findExactEmailMatch(users, searchEmail)).toBeNull()
         },
       ),
       { numRuns: 30 },
