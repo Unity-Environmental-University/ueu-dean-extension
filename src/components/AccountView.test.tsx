@@ -29,8 +29,6 @@ beforeEach(() => {
     accountCases: null,
     loading: false,
     error: null,
-    canMasquerade: null,
-    canMasqueradeCache: null,
     conversations: null,
     loadingConversations: false,
     conversationError: null,

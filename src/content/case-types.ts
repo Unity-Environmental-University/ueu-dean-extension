@@ -14,7 +14,6 @@ export interface LoadCaseDeps {
   sfQuery: <T>(soql: string) => Promise<SoqlResult<T>>
   describeObject: (objectType: string) => Promise<Map<string, { name: string; label: string; type: string }>>
   canvasFetch: <T>(path: string) => Promise<T>
-  checkSession: () => Promise<boolean>
   isStale: () => boolean
   onUpdate: (patch: CasePatch) => void
   observeFields: (objectType: string, log: DiagEntry[]) => void
@@ -39,7 +38,6 @@ export interface CasePatch {
   copRaw?: Record<string, unknown> | null
   caseRaw?: Record<string, unknown> | null
   contactRaw?: Record<string, unknown> | null
-  canMasquerade?: boolean | null
   diagnostics?: DiagEntry[]
 }
 

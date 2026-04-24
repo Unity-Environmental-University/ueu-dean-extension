@@ -1,10 +1,9 @@
 // @vitest-environment node
 import { describe, it, expect } from "vitest"
 import fc from "fast-check"
-import { probeCanvasMasquerade, loadCanvasConversations, type LoadMessagesDeps } from "./load-canvas-messages"
+import { loadCanvasConversations, type LoadMessagesDeps } from "./load-canvas-messages"
 
 function makeDeps(overrides: Partial<{
-  hasSession: boolean
   canvasFetchResults: unknown[]
   canvasFetchError: Error
   staleAfter: number
@@ -21,55 +20,9 @@ function makeDeps(overrides: Partial<{
       if (result instanceof Error) throw result
       return (result ?? []) as T
     },
-    checkSession: async () => overrides.hasSession ?? true,
     isStale: () => callCount > staleAfter,
   }
 }
-
-// ── probeCanvasMasquerade ────────────────────────────────────────────────────
-
-describe("probeCanvasMasquerade", () => {
-  it("no session → null (unknown)", async () => {
-    const deps = makeDeps({ hasSession: false })
-    const result = await probeCanvasMasquerade("42", deps)
-    expect(result).toBeNull()
-  })
-
-  it("session + successful fetch → true", async () => {
-    const deps = makeDeps({
-      hasSession: true,
-      canvasFetchResults: [{ id: 42 }],
-    })
-    const result = await probeCanvasMasquerade("42", deps)
-    expect(result).toBe(true)
-  })
-
-  it("session + fetch throws → false", async () => {
-    const deps = makeDeps({
-      hasSession: true,
-      canvasFetchError: new Error("403 Forbidden"),
-    })
-    const result = await probeCanvasMasquerade("42", deps)
-    expect(result).toBe(false)
-  })
-
-  it("prop: result is always null, true, or false", async () => {
-    await fc.assert(fc.asyncProperty(
-      fc.boolean(),
-      fc.boolean(),
-      async (hasSession, fetchSucceeds) => {
-        const deps = makeDeps({
-          hasSession,
-          ...(fetchSucceeds
-            ? { canvasFetchResults: [{ id: 1 }] }
-            : { canvasFetchError: new Error("fail") }),
-        })
-        const result = await probeCanvasMasquerade("1", deps)
-        expect([null, true, false]).toContain(result)
-      }
-    ), { numRuns: 10 })
-  })
-})
 
 // ── loadCanvasConversations ──────────────────────────────────────────────────
 
@@ -144,7 +97,6 @@ describe("loadCanvasConversations", () => {
         if (fetchCount === 1) return list as T  // list succeeds
         throw new Error("detail failed")        // detail fails
       },
-      checkSession: async () => true,
       isStale: () => false,
     }
 

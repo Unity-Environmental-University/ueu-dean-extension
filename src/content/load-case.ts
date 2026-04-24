@@ -7,7 +7,6 @@
  */
 
 import { makeFieldAccessor, createDiagLog, type DiagLog } from "./resolve"
-import { probeCanvasMasquerade } from "./load-canvas-messages"
 import { classifyIncident, buildCaseListQuery, mapCaseRecord, type CaseListRecord } from "./case-helpers"
 import { resolveCanvasAndStudent, resolveInstructor } from "./case-course-and-instructor"
 import type {
@@ -214,13 +213,11 @@ export async function loadCase(recordId: string, deps: LoadCaseDeps): Promise<vo
 
     deps.onUpdate({ loading: false })
 
-    if (canvas?.studentId) {
-      const canMasquerade = await probeCanvasMasquerade(canvas.studentId, deps)
-      if (!deps.isStale()) deps.onUpdate({ canMasquerade })
-    }
-
     const resolvedContactId = rawContactId ?? copContactId
-    diagnostics.add("prior-cases-contact", `rawContactId=${rawContactId ?? "null"} copContactId=${copContactId ?? "null"} resolved=${resolvedContactId ?? "null"}`)
+    // Emit directly — the local `diagnostics` DiagLog was last flushed at L102 via
+    // `deps.onUpdate({ caseData, diagnostics })`. Adding to the array after that
+    // point doesn't propagate; a direct patch is the only way to surface this entry.
+    deps.onUpdate({ diagnostics: [{ type: "prior-cases-contact", detail: `rawContactId=${rawContactId ?? "null"} copContactId=${copContactId ?? "null"} resolved=${resolvedContactId ?? "null"}` }] })
     if (resolvedContactId) {
       loadPriorCases(resolvedContactId, recordId, deps)
     } else {

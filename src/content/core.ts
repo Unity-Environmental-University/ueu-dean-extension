@@ -7,14 +7,14 @@
 
 import browser from "webextension-polyfill"
 import { getRecord, parseRecordUrl, describeObject, sfQuery } from "./sfapi"
-import { getPermissions, getCanvasCapabilities, saveCanvasCapabilities } from "./permissions"
+import { getPermissions } from "./permissions"
 import { pick, createDiagLog, type DiagLog } from "./resolve"
 import { observeFields, observeCaseComplete } from "./observer"
 import { loadAccountCourses } from "./load-account"
 import { loadCase as loadCaseImpl } from "./load-case"
 import { loadCourseOffering as loadCourseOfferingImpl } from "./load-course-offering"
 import { loadAccountCases as loadAccountCasesImpl } from "./load-account-cases"
-import { probeCanvasMasquerade, loadCanvasConversations } from "./load-canvas-messages"
+import { loadCanvasConversations } from "./load-canvas-messages"
 import { CANVAS_HOST } from "../constants"
 import {
   state, clearAllPageState,
@@ -31,13 +31,6 @@ function wrapContextError(e: unknown): never {
     throw new Error("Extension was reloaded — please refresh this page")
   }
   throw e
-}
-
-async function checkCanvasSession(): Promise<boolean> {
-  try {
-    const result = await browser.runtime.sendMessage({ type: "canvas-session-check" }) as { hasSession: boolean }
-    return !!result?.hasSession
-  } catch (e) { wrapContextError(e) }
 }
 
 async function canvasFetch<T>(path: string): Promise<T> {
@@ -60,7 +53,6 @@ function makeCaseDeps(token: number) {
     sfQuery,
     describeObject,
     canvasFetch,
-    checkSession: checkCanvasSession,
     isStale: () => stale(token),
     onUpdate: (patch: Parameters<typeof applyPatch>[0]) => {
       if (stale(token)) return        // drop writes from superseded navigations
@@ -135,14 +127,6 @@ async function loadTerm(recordId: string, token: number) {
   }
 }
 
-/** Set canMasquerade in state and persist to storage if it resolved to a definite value. */
-async function setCanMasquerade(value: boolean | null): Promise<void> {
-  state.canMasquerade = value
-  if (value !== null) {
-    await saveCanvasCapabilities({ canMasquerade: value })
-  }
-}
-
 async function loadAccount(recordId: string, token: number) {
   // State already cleared by clearAllPageState() in doNavigate
 
@@ -171,6 +155,10 @@ async function loadAccount(recordId: string, token: number) {
       canvasFetch,
       isStale: () => stale(token),
     })
+    // Always surface the retry's diagnostics (whether it succeeded or failed) so the
+    // dean can see what the second attempt found. Previously only the successful path
+    // pushed retry.diagnostics; a second-failure silently discarded them.
+    if (!stale(token)) state.diagnostics.push(...retry.diagnostics)
     if (!stale(token) && retry.canvasUserId) {
       state.accountData = {
         canvasUserId: retry.canvasUserId,
@@ -179,16 +167,8 @@ async function loadAccount(recordId: string, token: number) {
         lastActivityAt: retry.lastActivityAt,
         error: retry.error,
       }
-      state.diagnostics.push(...retry.diagnostics)
       state.loading = false
       state.notify()
-      if (state.canMasquerade === null && !stale(token)) {
-        const masq = await probeCanvasMasquerade(retry.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) })
-        if (!stale(token)) {
-          await setCanMasquerade(masq)
-          state.notify()
-        }
-      }
       return
     }
   }
@@ -208,14 +188,6 @@ async function loadAccount(recordId: string, token: number) {
   }
 
   state.notify()
-
-  if (result.canvasUserId && state.canMasquerade === null && !result.error && !stale(token)) {
-    const masq = await probeCanvasMasquerade(result.canvasUserId, { canvasFetch, checkSession: checkCanvasSession, isStale: () => stale(token) })
-    if (!stale(token)) {
-      await setCanMasquerade(masq)
-      state.notify()
-    }
-  }
 }
 
 // ── Navigation dispatch ──────────────────────────────────────────────────────
@@ -299,12 +271,9 @@ export function refresh() {
 
 /** Start watching for navigation changes */
 export function startWatching() {
-  getCanvasCapabilities().then(caps => {
-    if (state.canMasqueradeCache !== caps.canMasquerade) {
-      state.canMasqueradeCache = caps.canMasquerade
-      state.notify()
-    }
-  })
+  // One-shot cleanup: remove the orphaned masquerade-capability cache key left by
+  // earlier versions. Safe to call unconditionally — no-op if the key is already gone.
+  browser.storage.local.remove("ueu_canvas_capabilities").catch(() => {})
 
   onNavigate()
 
@@ -349,7 +318,6 @@ export async function loadConversations(
 
   const result = await loadCanvasConversations(studentCanvasId, instructorCanvasId, {
     canvasFetch,
-    checkSession: checkCanvasSession,
     isStale: () => stale(token),
   })
 

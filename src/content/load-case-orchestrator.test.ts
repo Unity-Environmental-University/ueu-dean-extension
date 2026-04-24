@@ -64,10 +64,7 @@ describe("loadCase: dishonesty path", () => {
           Name: "Student Name",
         },
       },
-      canvasResults: [
-        // probeCanvasMasquerade: masquerade check
-        { id: 42 },
-      ],
+      canvasResults: [],
       queryResults: [
         // loadPriorCases
         { records: [] },

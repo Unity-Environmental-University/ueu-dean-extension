@@ -25,28 +25,7 @@ export interface CanvasConversation {
 
 export interface LoadMessagesDeps {
   canvasFetch: <T>(path: string) => Promise<T>
-  checkSession: () => Promise<boolean>
   isStale: () => boolean
-}
-
-/**
- * Probe whether the logged-in Canvas user has "Become other users" permission.
- * Checks for an active Canvas session first — returns null if no session
- * (meaning "unknown, not denied"), false if session exists but masquerade fails,
- * true if masquerade succeeds.
- */
-export async function probeCanvasMasquerade(
-  canvasUserId: string,
-  deps: LoadMessagesDeps,
-): Promise<boolean | null> {
-  const hasSession = await deps.checkSession()
-  if (!hasSession) return null
-  try {
-    await deps.canvasFetch(`/api/v1/users/${canvasUserId}?as_user_id=${canvasUserId}`)
-    return true
-  } catch {
-    return false
-  }
 }
 
 /**

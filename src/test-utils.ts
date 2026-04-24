@@ -83,7 +83,6 @@ export function makeTestCaseDeps(opts: TestCaseDepsOptions = {}): {
       if (result instanceof Error) throw result
       return (result ?? []) as T
     },
-    checkSession: async () => opts.hasSession ?? true,
     isStale: () => callCount > staleAfter,
     onUpdate: (patch: CasePatch) => {
       patches.push(patch)

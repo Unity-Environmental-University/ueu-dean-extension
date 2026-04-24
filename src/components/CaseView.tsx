@@ -10,7 +10,7 @@ import { createSignal, Show } from "solid-js"
 import browser from "webextension-polyfill"
 import { getSettings } from "../content/permissions"
 import { state } from "../content/core"
-import { useStore, useCanvasPermissions, useSessionPoll } from "./useStore"
+import { useStore, useSessionPoll } from "./useStore"
 import { HistoryToggle, type HistoryDrawerState } from "./HistoryDrawer"
 import { DishonestySummary } from "./DishonestySummary"
 import { GradeAppealSummary } from "./GradeAppealSummary"
@@ -30,7 +30,6 @@ export function CaseView(props: { historyState: HistoryDrawerState; onDrawerTogg
   const studentError = get("studentError")
   const instructor = get("instructor")
   const page = get("page")
-  const { showCanvasFeatures, canvasFeaturesPending } = useCanvasPermissions(get)
   const anyError = () => error() || courseOfferingError() || (studentError() && studentError() !== "canvas-session-required")
 
   const [reportStatus, setReportStatus] = createSignal<"idle" | "sending" | "sent" | "error">("idle")
@@ -118,7 +117,7 @@ export function CaseView(props: { historyState: HistoryDrawerState; onDrawerTogg
       </Show>
 
       {/* Canvas + student + messages */}
-      <CanvasSection get={get} showCanvasFeatures={showCanvasFeatures} canvasFeaturesPending={canvasFeaturesPending} />
+      <CanvasSection get={get} />
 
       {/* Instructor */}
       <Show when={instructor()}>
@@ -126,8 +125,6 @@ export function CaseView(props: { historyState: HistoryDrawerState; onDrawerTogg
           <InstructorCard
             instructor={i()}
             canvas={canvas() ?? null}
-            showCanvasFeatures={showCanvasFeatures()}
-            canvasFeaturesPending={canvasFeaturesPending()}
           />
         )}
       </Show>

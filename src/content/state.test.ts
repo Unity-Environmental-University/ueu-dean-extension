@@ -18,7 +18,6 @@ beforeEach(() => {
   state.loadingStudent = false
   state.courseOfferingError = null
   state.studentError = null
-  state.canMasquerade = null
   state.conversations = null
   state.loadingConversations = false
   state.conversationError = null
@@ -81,14 +80,12 @@ describe("clearCaseState", () => {
 describe("clearConversationState", () => {
   it("prop: all conversation fields are null/false after clear", () => {
     fc.assert(
-      fc.property(fc.boolean(), fc.string(), (bool, str) => {
-        state.canMasquerade = bool
+      fc.property(fc.boolean(), fc.string(), (_bool, str) => {
         state.loadingConversations = true
         state.conversationError = str
 
         clearConversationState()
 
-        expect(state.canMasquerade).toBeNull()
         expect(state.conversations).toBeNull()
         expect(state.loadingConversations).toBe(false)
         expect(state.conversationError).toBeNull()

@@ -10,15 +10,12 @@ import type { useStore } from "./useStore"
 
 export function CanvasSection(props: {
   get: ReturnType<typeof useStore>
-  showCanvasFeatures: () => boolean
-  canvasFeaturesPending: () => boolean
 }) {
   const canvas = props.get("canvas")
   const loadingCO = props.get("loadingCourseOffering")
   const loadingStudent = props.get("loadingStudent")
   const courseOfferingError = props.get("courseOfferingError")
   const studentError = props.get("studentError")
-  const canMasquerade = props.get("canMasquerade")
   const instructor = props.get("instructor")
   const conversations = props.get("conversations")
   const loadingConversations = props.get("loadingConversations")
@@ -85,8 +82,6 @@ export function CanvasSection(props: {
                   userId={c().studentId!}
                   courseId={c().courseId}
                   showGrades
-                  showActAs={props.showCanvasFeatures()}
-                  pending={props.canvasFeaturesPending()}
                 />
               </Show>
             </Show>
@@ -94,16 +89,9 @@ export function CanvasSection(props: {
         )}
       </Show>
 
-      {/* Canvas access unavailable */}
-      <Show when={canMasquerade() === false}>
-        <div class="ueu-canvas-no-access">
-          Canvas message history is not available for your account. To view instructor–student communications, your Canvas account requires the "Become other users" permission.
-        </div>
-      </Show>
-
       {/* Messages */}
-      <Show when={props.showCanvasFeatures() && canvas()?.studentId && instructor()?.canvasId}>
-        <article class={props.canvasFeaturesPending() ? "ueu-canvas-pending" : ""}>
+      <Show when={canvas()?.studentId && instructor()?.canvasId}>
+        <article>
           <h3 class="ueu-label">Messages</h3>
           <Show when={!conversations() && !loadingConversations()}>
             <button

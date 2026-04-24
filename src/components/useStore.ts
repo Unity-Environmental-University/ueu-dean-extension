@@ -29,24 +29,6 @@ export function useStore() {
 }
 
 /**
- * Derived Canvas permission signals — shared by CaseView and AccountView.
- *
- * showCanvasFeatures: true when verified, or cached-true while re-verifying
- * canvasFeaturesPending: true when still verifying but cache says yes (ghost UI)
- */
-export function useCanvasPermissions(get: ReturnType<typeof useStore>) {
-  const canMasquerade = get("canMasquerade")
-  const canMasqueradeCache = get("canMasqueradeCache")
-
-  const showCanvasFeatures = () =>
-    canMasquerade() === true || (canMasquerade() === null && canMasqueradeCache() === true)
-  const canvasFeaturesPending = () =>
-    canMasquerade() === null && canMasqueradeCache() === true
-
-  return { showCanvasFeatures, canvasFeaturesPending }
-}
-
-/**
  * Poll for Canvas session when auth is needed.
  * Triggers refresh() once a session is detected.
  *

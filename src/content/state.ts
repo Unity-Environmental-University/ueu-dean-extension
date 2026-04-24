@@ -57,12 +57,6 @@ export const state = {
   /** CourseOffering page data — roster + grades */
   offeringData: null as CourseOfferingResult | null,
 
-  /** Whether the logged-in Canvas user has "Become other users" permission */
-  canMasquerade: null as boolean | null,
-
-  /** Cached masquerade permission from last session — used to ghost features while re-verifying */
-  canMasqueradeCache: null as boolean | null,
-
   /** Canvas conversations — loaded on demand via loadConversations() */
   conversations: null as CanvasConversation[] | null,
   loadingConversations: false,
@@ -116,9 +110,8 @@ export function clearCaseState() {
   state.studentError = null
 }
 
-/** Reset all conversation/Canvas permission state. Called on new load and page exit. */
+/** Reset all conversation state. Called on new load and page exit. */
 export function clearConversationState() {
-  state.canMasquerade = null
   state.conversations = null
   state.loadingConversations = false
   state.conversationError = null
@@ -171,7 +164,5 @@ export function applyPatch(patch: CasePatch): void {
   if ("copRaw" in patch) state.copRaw = patch.copRaw!
   if ("caseRaw" in patch) state.caseRaw = patch.caseRaw!
   if ("contactRaw" in patch) state.contactRaw = patch.contactRaw!
-  if ("canMasquerade" in patch) state.canMasquerade = patch.canMasquerade!
-  if ("canMasqueradeCache" in patch) state.canMasqueradeCache = patch.canMasqueradeCache!
   state.notify()
 }

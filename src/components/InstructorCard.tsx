@@ -9,8 +9,6 @@ import type { InstructorState, CanvasState } from "../content/case-types"
 export function InstructorCard(props: {
   instructor: InstructorState
   canvas: CanvasState | null
-  showCanvasFeatures: boolean
-  canvasFeaturesPending: boolean
 }) {
   const i = props.instructor
   return (
@@ -22,8 +20,6 @@ export function InstructorCard(props: {
           userId={i.canvasId!}
           courseId={props.canvas?.courseId}
           showInCourse
-          showActAs={props.showCanvasFeatures}
-          pending={props.canvasFeaturesPending}
         />
       </Show>
       <Show when={i.email}>

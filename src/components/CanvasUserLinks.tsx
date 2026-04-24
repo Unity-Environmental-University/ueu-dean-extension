@@ -12,10 +12,6 @@ export function CanvasUserLinks(props: {
   showGrades?: boolean
   /** Show "In Course →" link (instructor in a course context) */
   showInCourse?: boolean
-  /** Show "Act as →" link (requires masquerade permission) */
-  showActAs: boolean
-  /** True while masquerade permission is being re-verified from cache */
-  pending: boolean
 }) {
   return (
     <div class="ueu-canvas-links">
@@ -32,11 +28,9 @@ export function CanvasUserLinks(props: {
           In Course &rarr;
         </a>
       </Show>
-      <Show when={props.showActAs}>
-        <a href={`${CANVAS_URL}/users/${props.userId}/masquerade`} target="_blank" rel="noopener noreferrer" class={`ueu-canvas-link${props.pending ? " ueu-canvas-pending" : ""}`} aria-disabled={props.pending}>
-          Act as &rarr;
-        </a>
-      </Show>
+      <a href={`${CANVAS_URL}/users/${props.userId}/masquerade`} target="_blank" rel="noopener noreferrer" class="ueu-canvas-link">
+        Act as &rarr;
+      </a>
     </div>
   )
 }

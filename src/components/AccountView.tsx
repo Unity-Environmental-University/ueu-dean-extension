@@ -10,7 +10,7 @@ import { CANVAS_URL } from "../constants"
 import { isCurrentTerm, termAverage } from "../content/student-courses"
 import { scoreColor, formatScore, formatLda } from "./format"
 import { CanvasUserLinks } from "./CanvasUserLinks"
-import { useStore, useCanvasPermissions, useSessionPoll } from "./useStore"
+import { useStore, useSessionPoll } from "./useStore"
 
 export function AccountView() {
   const get = useStore()
@@ -22,8 +22,6 @@ export function AccountView() {
   const accountData = get("accountData")
   const loading = get("loading")
   const error = get("error")
-  const canMasquerade = get("canMasquerade")
-  const { showCanvasFeatures, canvasFeaturesPending } = useCanvasPermissions(get)
   const accountCases = get("accountCases")
   const conversations = get("conversations")
   const loadingConversations = get("loadingConversations")
@@ -160,25 +158,15 @@ export function AccountView() {
               <p class="ueu-warn">{data().error}</p>
             </Show>
 
-            <Show when={canMasquerade() === false}>
-              <div class="ueu-canvas-no-access">
-                Some Canvas features are unavailable for your account. Message history and "Act as" require the "Become other users" permission in Canvas.
-              </div>
-            </Show>
-
             {/* Canvas links when we have a user ID */}
             <Show when={data().canvasUserId}>
               <div style={{"margin-bottom": "0.5rem"}}>
                 <CanvasUserLinks
                   userId={data().canvasUserId!}
-                  showActAs={showCanvasFeatures()}
-                  pending={canvasFeaturesPending()}
                 />
               </div>
 
-              {/* Inbox — only available with masquerade permission */}
-              <Show when={showCanvasFeatures()}>
-                <div class={canvasFeaturesPending() ? "ueu-canvas-pending" : undefined} style={{"margin-bottom": "0.75rem"}}>
+              <div style={{"margin-bottom": "0.75rem"}}>
                   <Show when={!conversations() && !loadingConversations()}>
                     <button
                       class="ueu-btn-messages"
@@ -217,7 +205,6 @@ export function AccountView() {
                     )}
                   </Show>
                 </div>
-              </Show>
             </Show>
 
             {/* Term filter chips */}
