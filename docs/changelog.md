@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-04-24 (v0.4.4-beta)
+
+### What's fixed
+
+- **Wrong student on cases.** When two students shared a name or a close email, the extension could attach the wrong student's Canvas data to a case. This was the biggest reason deans were seeing mismatched information. Now the student match has to be exact — same email, not just a close one — and if no exact match is found, the extension says so instead of guessing.
+
+- **Wrong student on Course Offering pages.** Similar problem on the class roster: students were being matched between Salesforce and Canvas by name, which could go wrong for duplicate names. Now the roster joins by Canvas User ID directly. If a Canvas student has no Salesforce record with a matching Canvas User ID, you'll see a clear message at the top of the course page instead of the wrong name silently appearing.
+
+- **Louder diagnostics.** When student lookup doesn't find a match, the diagnostics panel now tells you what was tried and what was rejected (including which email didn't match), so you can tell whether the data is missing or the search just failed.
+
+### What's changed
+
+- **Act-as button always shows.** Previously the extension tried to check whether your Canvas account had "Become other users" permission before showing the Act-as link, inbox, or message history. That check was unreliable — it sometimes hid features from people who actually had permission. Now those buttons always appear. If you don't have the Canvas permission, clicking through shows Canvas's own "no access" page.
+
+---
+
 ## 2026-03-26 (v0.4.3-beta)
 
 ### What's fixed

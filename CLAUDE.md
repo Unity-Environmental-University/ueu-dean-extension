@@ -12,14 +12,14 @@ src/
     state.ts                — Shared reactive state object, clear functions, applyPatch, navToken.
     load-case.ts            — Case page orchestrator. Injected deps, never touches state directly.
     load-account.ts         — Account page loader.
-    load-course-offering.ts — CourseOffering page loader. Canvas roster is primary student source.
-    load-canvas-messages.ts — Canvas conversations + masquerade probe. Pure async.
+    load-course-offering.ts — CourseOffering page loader. Canvas roster is primary student source; joined to SF Contacts by Canvas User ID only (no name/email fallback — unmatched enrollments surface a loud roster-mismatch error).
+    load-canvas-messages.ts — Canvas conversations loader. Pure async.
     case-helpers.ts         — SOQL builder, record mapper, incident classifier, email matcher.
     case-types.ts           — Shared type definitions for the case loading pipeline.
     case-student-resolution.ts — Student lookup pipeline: account → enrollment → contact → email.
     case-course-and-instructor.ts — CO resolution + instructor Canvas lookup.
     sfapi.ts                — SF REST API helpers (getRecord, sfQuery, describeObject, parseRecordUrl).
-    permissions.ts          — Extension storage: consent gate, settings, canvas capabilities cache.
+    permissions.ts          — Extension storage: consent gate + settings.
     field-utils.ts          — Shared utilities (cleanTermName).
     resolve.ts              — Field resolution with diagnostic logging (pick, diag, makeFieldAccessor).
     observer.ts             — DOM field observation for SF pages.
@@ -52,9 +52,11 @@ src/
 
 **Stale token pattern.** `navToken` increments on every navigation. Async operations capture it and bail via `stale(token)` if navigation moved on. Prevents stale writes from superseded page loads.
 
-**Masquerade permission.** `probeCanvasMasquerade` returns `true` (has permission), `false` (no permission), or `null` (no Canvas session — can't determine). Cached in `browser.storage.local` via `canvasCapabilities`. Views use `showCanvasFeatures()` to ghost UI while re-verifying from cache.
+**Masquerade permission — ungated.** The Act-as link (and the inbox/messages buttons that rely on it) always renders. Earlier versions pre-flighted masquerade permission via `probeCanvasMasquerade`, cached the result, and gated UI on it — that logic was deleted because (a) any probe is a proxy for the real test, and (b) a transient failure could poison the cache and hide the button for users who actually had permission. Now the click itself is the test: if Canvas returns 401/403, the user sees Canvas's own error page. Louder, simpler, honest. Do not reintroduce a pre-flight permission check without a concrete bug that requires one.
 
 **Canvas API auth.** Cookie-based, not OAuth. Background script reads `_csrf_token` from `unity.instructure.com`. No API keys in the extension. Session check via `canvas-session-check` message type.
+
+**Identity joins.** When matching a person between SF and Canvas, use the Canvas User ID (stored on SF Account as `Canvas_User_ID__pc` and on SF Contact as `Canvas_User_ID__c`) as the identity key. Canvas enrollment records carry the same `user_id` — an id↔id comparison cannot collide. **Do not fall back to email or name matching** unless the SF record has no Canvas User ID declared (the "bootstrap" case, where email → Canvas search_users is used strictly with `findExactEmailMatch`). Name-joins and loose email-joins silently produce wrong-student bugs; if the declared Canvas ID doesn't match, surface a loud error rather than guessing.
 
 ## When Adding State
 

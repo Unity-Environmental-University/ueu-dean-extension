@@ -38,13 +38,12 @@ Typical question: *"Instructor flagged low engagement in this section. Who's ina
 
 ### 4. Staff Without Masquerade
 
-Any of the above roles, but their Canvas admin account lacks "Become other users." They see:
-- All SF-sourced data (case details, prior history, course offerings)
-- Canvas scores and LDA (no masquerade needed)
-- Canvas profile links
-- **Not:** Act-as links, student inbox, message threads
+Any of the above roles, but their Canvas admin account lacks "Become other users." The extension doesn't pre-flight for this permission — the Act-as link and message buttons render for everyone, and Canvas itself returns a permission-denied page if the user actually lacks masquerade. Earlier versions tried to gate these features via a probe + cache; that logic was removed because a transient probe failure could hide features from users who did have permission.
 
-The code handles this explicitly: grayed-out features with `ueu-canvas-pending`, and the "Some Canvas features are unavailable" message when `canMasquerade === false`.
+What this user sees:
+- All SF-sourced data (case details, prior history, course offerings)
+- Canvas scores, LDA, and profile links (no masquerade needed for these read paths)
+- Act-as / inbox buttons — but clicking them when permission is absent shows Canvas's own error page instead of loading data
 
 ### 5. The New User (no Canvas session)
 
